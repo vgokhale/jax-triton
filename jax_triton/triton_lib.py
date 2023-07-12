@@ -129,9 +129,30 @@ def aval_size_bytes(aval):
 # alive by the jitted JAX function.
 _COMPILED_KERNEL_CACHE = weakref.WeakValueDictionary()
 
-def ptx_get_kernel_name(module) -> str:
+def get_kernel_name(module) -> str:
   return tc.get_kernel_name(module, pattern='// .globl')
 
+def get_amdgpu_arch_fulldetails():
+    """
+    get the amdgpu fulll ISA details for compiling:
+    i.e., arch_triple: amdgcn-amd-amdhsa; arch_name: gfx906; arch_features: sramecc+:xnack-
+    """
+    try:
+        # TODO: package rocm.cc with Triton
+        arch_info = _triton.get_arch_info()
+        warp_size = _triton.get_warp_size()
+        gfx_arch_details = re.search('amd.*', arch_info).group(0).strip().split('--')
+        arch_triple = gfx_arch_details[0]
+        arch_name_features = gfx_arch_details[1].split(':')
+        arch_name = arch_name_features[0]
+        arch_features = ""
+
+        if (len(arch_name_features) == 3):
+            arch_features = "+" + re.search('\\w+', arch_name_features[1]).group(0) + ","\
+                            "-" + re.search('\\w+', arch_name_features[2]).group(0)
+        return [arch_triple, arch_name, arch_features, warp_size]
+    except BaseException:
+        return None
 
 def compile_ttir_inplace(
     ttir,
@@ -149,7 +170,7 @@ def compile_ttir_inplace(
     print(ttir)
   try:
     ttir = tc.optimize_ttir(ttir, compute_capability)
-    ttgir = tc.ttir_to_ttgir(ttir, num_warps)
+    ttgir = tc.ttir_to_ttgir(ttir, num_warps, 64)
     ttgir = tc.optimize_ttgir(ttgir, num_stages, compute_capability)
   except RuntimeError as e:
     ttir.dump()
@@ -164,15 +185,22 @@ def compile_ttir_inplace(
     ttgir.dump()
     raise ValueError("TTGIR->LLIR pass failed!") from e
   shared_mem = _triton.get_shared_memory_size(ttgir)
+  arch_fulldetails = get_amdgpu_arch_fulldetails()
+  gfx_arch = os.environ.get('MI_GPU_ARCH', arch_full_details[1])
   if dump:
     print(llir)
-  ptx = tc.llir_to_ptx(llir, compute_capability)
+  #ptx = tc.llir_to_ptx(llir, compute_capability)
+  hsa = tc.llir_to_amdgcn_and_hsaco(llir, gfx_arch,
+                                          arch_full_details[0],
+                                          arch_full_details[2])
   if dump:
-    print(ptx)
-  name = ptx_get_kernel_name(ptx)
-  cubin = tc.ptx_to_cubin(ptx, compute_capability)
-  asm.update(llir=llir, ptx=ptx)
-  return cubin, name, shared_mem, asm
+    print(hsa)
+  #name = ptx_get_kernel_name(ptx)
+  name = get_kernel_name(hsa)
+  #cubin = tc.ptx_to_cubin(ptx, compute_capability)
+  asm.update(llir=llir, hsa=hsa)
+  #return cubin, name, shared_mem, asm
+  return hsa, name, shared_mem, asm
 
 
 def get_or_create_triton_kernel(

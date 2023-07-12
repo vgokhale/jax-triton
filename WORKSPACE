@@ -9,14 +9,14 @@ new_local_repository(
   build_file_content = """
 cc_library(
     name = "rocm_headers",
-    hdrs = glob(["include/*.h"]),
+    hdrs = glob(["include/**/*.h"]),
     includes = ["include/"],
     visibility = ["//visibility:public"],
 )
 
 cc_library(
     name = "libamdhip64",
-    srcs = ["lib/libamd64.so"],
+    srcs = ["lib/libamdhip64.so"],
     visibility = ["//visibility:public"],
 )
   """
