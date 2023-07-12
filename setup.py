@@ -24,13 +24,13 @@ setup(
         Extension(
             name="jax_triton.triton_kernel_call_lib",
             sources=["lib/triton_kernel_call.cc"],
-            include_dirs=["/usr/local/cuda/include",
+            include_dirs=["/opt/rocm-5.5.0/include",
                           pybind11.get_include()],
-            libraries=["cuda"],
+            libraries=["amdhip64"],
             library_dirs=[
-                "/usr/local/cuda/lib64", "/usr/local/cuda/lib64/stubs"
+                "/opt/rocm-5.5.0/lib"
             ],
             language="c++",
-            extra_compile_args=['-std=c++17', '-v'],
+            extra_compile_args=['-std=c++17', '-v', '-D__HIP_PLATFORM_AMD__'],
         )
     ])
