@@ -158,7 +158,7 @@ class TritonKernelCall : public TritonKernelCallBase {
 
   void Launch(hipStream_t stream, void** buffers) override final {
     for (const auto& [i, size] : zeroed_buffers_) {
-      CHECK_CUDA(hipMemsetD8Async(reinterpret_cast<hipDeviceptr_t>(buffers[i]), 0,
+      CHECK_ROCM(hipMemsetD8Async(reinterpret_cast<hipDeviceptr_t>(buffers[i]), 0,
                                  size, stream));
     }
 
@@ -333,7 +333,7 @@ PYBIND11_MODULE(triton_kernel_call_lib, m) {
 
   py::class_<TritonKernelCall>(m, "TritonKernelCall")
       .def(py::init<TritonKernel&, uint32_t, uint32_t, uint32_t,
-                    std::vector<std::optional<uint64_t>>>,
+                    std::vector<std::optional<uint64_t>>,
                     std::unordered_map<size_t, size_t>>(),
            py::keep_alive<1, 2>())  // Ensure that the kernel lives long enough.
       .def_property_readonly("descriptor", [](TritonKernelCall& kernel_call) {
