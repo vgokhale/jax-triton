@@ -25,18 +25,18 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cuda.h"
+#include <hip/hip_runtime.h>
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 
 // TODO(cjfj): Use `Status` for error handling.
-#define CHECK_CUDA(expr)                                                  \
+#define CHECK_ROCM(expr)                                                  \
   do {                                                                    \
-    CUresult result = (expr);                                             \
-    if (result != CUDA_SUCCESS) {                                         \
+    hipError_t result = (expr);                                           \
+    if (result != hipSuccess) {                                           \
       const char* error_string = "unknown error";                         \
-      cuGetErrorString(result, &error_string);                            \
-      std::cerr << "CUDA call failed (" << #expr << "): " << error_string \
+      hipDrvGetErrorString(result, &error_string);                           \
+      std::cerr << "HIP call failed (" << #expr << "): " << error_string  \
                 << std::endl;                                             \
       abort();                                                            \
     }                                                                     \
@@ -47,14 +47,14 @@ namespace py = pybind11;
 namespace jax_triton {
 namespace {
 
-constexpr uint32_t kNumThreadsPerWarp = 32;
+constexpr uint32_t kNumThreadsPerWarp = 64;
 
-struct CuModuleDeleter {
-  void operator()(CUmodule module) { cuModuleUnload(module); }
+struct hipModuleDeleter {
+  void operator()(hipModule_t module) { hipModuleUnload(module); }
 };
 
-using OwnedCUmodule =
-    std::unique_ptr<std::remove_pointer_t<CUmodule>, CuModuleDeleter>;
+using OwnedhipModule =
+    std::unique_ptr<std::remove_pointer_t<hipModule_t>, hipModuleDeleter>;
 
 class TritonKernel {
  public:
@@ -65,32 +65,36 @@ class TritonKernel {
         block_dim_x_(num_warps * kNumThreadsPerWarp),
         shared_mem_bytes_(shared_mem_bytes) {}
 
-  void Launch(CUstream stream, uint32_t grid[3], void** params) {
-    CUcontext context;
-    CHECK_CUDA(cuStreamGetCtx(stream, &context));
-    CUfunction kernel = GetFunctionForContext(context);
-    CHECK_CUDA(cuLaunchKernel(kernel, grid[0], grid[1], grid[2], block_dim_x_,
+  void Launch(hipStream_t stream, uint32_t grid[3], void** params) {
+    hipCtx_t context;
+    hipDevice_t device;
+    //CHECK_ROCM(hipStreamGetCtx(stream, &context));  //BLARG
+    int device_id = hipGetStreamDeviceId(stream);
+    CHECK_ROCM(hipDeviceGet(&device, device_id));
+    CHECK_ROCM(hipDevicePrimaryCtxRetain(&context, device));
+    hipFunction_t kernel = GetFunctionForContext(context);
+    CHECK_ROCM(hipModuleLaunchKernel(kernel, grid[0], grid[1], grid[2], block_dim_x_,
                               /*blockDimY=*/1, /*blockDimZ=*/1,
                               shared_mem_bytes_, stream, params,
                               /*extra=*/nullptr));
   }
 
  private:
-  CUfunction GetFunctionForContext(CUcontext context) {
+  hipFunction_t GetFunctionForContext(hipCtx_t context) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = functions_.find(context);
     if (it != functions_.end()) {
       return it->second;
     }
 
-    CHECK_CUDA(cuCtxPushCurrent(context));
-    CUmodule module;
-    CHECK_CUDA(cuModuleLoadData(&module, module_image_.c_str()));
-    modules_.push_back(OwnedCUmodule(module, CuModuleDeleter()));
-    CHECK_CUDA(cuCtxPopCurrent(nullptr));
+    CHECK_ROCM(hipCtxPushCurrent(context));
+    hipModule_t module;
+    CHECK_ROCM(hipModuleLoadData(&module, module_image_.c_str()));
+    modules_.push_back(OwnedhipModule(module, hipModuleDeleter()));
+    CHECK_ROCM(hipCtxPopCurrent(nullptr));
 
-    CUfunction function;
-    CHECK_CUDA(cuModuleGetFunction(&function, module, kernel_name_.c_str()));
+    hipFunction_t function;
+    CHECK_ROCM(hipModuleGetFunction(&function, module, kernel_name_.c_str()));
     auto [_, success] = functions_.insert({context, function});
     assert(success);
 
@@ -102,26 +106,26 @@ class TritonKernel {
     }
 
     // Set up dynamic shared memory.
-    CUdevice device;
-    CHECK_CUDA(cuCtxGetDevice(&device));
+    hipDevice_t device;
+    CHECK_ROCM(hipCtxGetDevice(&device));
 
     int shared_optin;
-    CHECK_CUDA(cuDeviceGetAttribute(
-        &shared_optin, CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN,
+    CHECK_ROCM(hipDeviceGetAttribute(
+        &shared_optin, hipDeviceAttributeSharedMemPerBlockOptin,
         device));
 
     if (shared_optin > kMaxStaticSharedMemBytes) {
-      CHECK_CUDA(cuFuncSetCacheConfig(function, CU_FUNC_CACHE_PREFER_SHARED));
+      //CHECK_ROCM(cuFuncSetCacheConfig(function, CU_FUNC_CACHE_PREFER_SHARED));
       int shared_total;
-      CHECK_CUDA(cuDeviceGetAttribute(
+      CHECK_ROCM(hipDeviceGetAttribute(
           &shared_total,
-          CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_MULTIPROCESSOR, device));
+          hipDeviceAttributeMaxSharedMemoryPerMultiprocessor, device));
       int shared_static;
-      CHECK_CUDA(cuFuncGetAttribute(
-          &shared_static, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, function));
-      CHECK_CUDA(cuFuncSetAttribute(
-          function, CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
-          shared_optin - shared_static));
+      CHECK_ROCM(hipFuncGetAttribute(
+          &shared_static, HIP_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, function));
+      //CHECK_ROCM(cuFuncSetAttribute(
+      //    function, HIP_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
+      //    shared_optin - shared_static));
     }
     return function;
   }
@@ -132,13 +136,13 @@ class TritonKernel {
   uint32_t shared_mem_bytes_;
 
   std::mutex mutex_;
-  std::vector<OwnedCUmodule> modules_;
-  std::unordered_map<CUcontext, CUfunction> functions_;
+  std::vector<OwnedhipModule> modules_;
+  std::unordered_map<hipCtx_t, hipFunction_t> functions_;
 };
 
 struct TritonKernelCallBase {
   virtual ~TritonKernelCallBase() = default;
-  virtual void Launch(CUstream stream, void** buffers) = 0;
+  virtual void Launch(hipStream_t stream, void** buffers) = 0;
 };
 
 class TritonKernelCall : public TritonKernelCallBase {
@@ -146,15 +150,15 @@ class TritonKernelCall : public TritonKernelCallBase {
   TritonKernelCall(TritonKernel& kernel, uint32_t grid_0, uint32_t grid_1,
                    uint32_t grid_2,
                    std::vector<std::optional<uint64_t>> parameters,
-                   std::unordered_map<size_t, size_t> zeroed_buffers)
+		   std::unordered_map<size_t, size_t> zeroed_buffers)
       : kernel_(kernel),
         grid_{grid_0, grid_1, grid_2},
         parameters_(std::move(parameters)),
         zeroed_buffers_(std::move(zeroed_buffers)) {}
 
-  void Launch(CUstream stream, void** buffers) override final {
+  void Launch(hipStream_t stream, void** buffers) override final {
     for (const auto& [i, size] : zeroed_buffers_) {
-      CHECK_CUDA(cuMemsetD8Async(reinterpret_cast<CUdeviceptr>(buffers[i]), 0,
+      CHECK_CUDA(hipMemsetD8Async(reinterpret_cast<hipDeviceptr_t>(buffers[i]), 0,
                                  size, stream));
     }
 
@@ -190,7 +194,7 @@ class TritonAutotunedKernelCall : public TritonKernelCallBase {
   TritonAutotunedKernelCall(std::string name, std::vector<Config> configs)
       : name_(name), configs_(configs) {}
 
-  void Launch(CUstream stream, void** buffers) override {
+  void Launch(hipStream_t stream, void** buffers) override {
     if (configs_.size() > 1) {
       std::cerr << "Autotuning function: " << name_ << std::endl;
       // First run a single iteration of each to config to determine how many
@@ -237,22 +241,22 @@ class TritonAutotunedKernelCall : public TritonKernelCallBase {
  private:
   static constexpr float kBenchmarkTimeMillis = 100.;
 
-  float Benchmark(CUstream stream, TritonKernelCall& kernel_call,
+  float Benchmark(hipStream_t stream, TritonKernelCall& kernel_call,
                   void** buffers, int num_iterations) {
-    CUevent start, stop;
-    CHECK_CUDA(cuEventCreate(&start, /*Flags=*/CU_EVENT_DEFAULT));
-    CHECK_CUDA(cuEventCreate(&stop, /*Flags=*/CU_EVENT_DEFAULT));
+    hipEvent_t start, stop;
+    CHECK_ROCM(hipEventCreateWithFlags(&start, /*Flags=*/hipEventDefault));
+    CHECK_ROCM(hipEventCreateWithFlags(&stop, /*Flags=*/hipEventDefault));
     kernel_call.Launch(stream, buffers);  // Warm-up iteration.
-    CHECK_CUDA(cuEventRecord(start, stream));
+    CHECK_ROCM(hipEventRecord(start, stream));
     for (int i = 0; i < num_iterations; ++i) {
       kernel_call.Launch(stream, buffers);
     }
-    CHECK_CUDA(cuEventRecord(stop, stream));
-    CHECK_CUDA(cuEventSynchronize(stop));
+    CHECK_ROCM(hipEventRecord(stop, stream));
+    CHECK_ROCM(hipEventSynchronize(stop));
     float elapsed_ms;
-    CHECK_CUDA(cuEventElapsedTime(&elapsed_ms, start, stop));
-    CHECK_CUDA(cuEventDestroy(start));
-    CHECK_CUDA(cuEventDestroy(stop));
+    CHECK_ROCM(hipEventElapsedTime(&elapsed_ms, start, stop));
+    CHECK_ROCM(hipEventDestroy(start));
+    CHECK_ROCM(hipEventDestroy(stop));
     return elapsed_ms;
   }
 
@@ -315,7 +319,7 @@ uint64_t EncodeKernelParameter(py::bool_ value, std::string_view dtype) {
 
 }  // namespace
 
-void LaunchTritonKernel(CUstream stream, void** buffers, char* opaque,
+void LaunchTritonKernel(hipStream_t stream, void** buffers, char* opaque,
                         size_t opaque_len) {
   assert(opaque_len == sizeof(TritonKernelCallBase*));
   TritonKernelCallBase* kernel_call;
@@ -329,7 +333,7 @@ PYBIND11_MODULE(triton_kernel_call_lib, m) {
 
   py::class_<TritonKernelCall>(m, "TritonKernelCall")
       .def(py::init<TritonKernel&, uint32_t, uint32_t, uint32_t,
-                    std::vector<std::optional<uint64_t>>,
+                    std::vector<std::optional<uint64_t>>>,
                     std::unordered_map<size_t, size_t>>(),
            py::keep_alive<1, 2>())  // Ensure that the kernel lives long enough.
       .def_property_readonly("descriptor", [](TritonKernelCall& kernel_call) {
