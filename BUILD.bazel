@@ -17,8 +17,8 @@ pybind_extension(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
-        "@cuda//:cuda_headers",
-        "@cuda//:libcuda",
+        "@rocm//:rocm_headers",
+        "@rocm//:libamdhip64",
         "@pybind11_abseil//pybind11_abseil:status_casters",
     ],
 )
