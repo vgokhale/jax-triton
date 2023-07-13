@@ -141,7 +141,6 @@ class TritonKernel {
     ROCM_RETURN_IF_ERROR(hipCtxPushCurrent(context));
     absl::Cleanup ctx_restorer = [] { hipCtxPopCurrent(nullptr); };
 
-    std::cout << module_image_.c_str() << std::endl;
     hipModule_t module;
     void* hsaco_data = const_cast<char*>(module_image_.c_str());
     //ROCM_RETURN_IF_ERROR(hipModuleLoadData(&module, hsaco_data));

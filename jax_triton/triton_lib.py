@@ -142,21 +142,16 @@ def get_amdgpu_arch_fulldetails():
     try:
         # TODO: package rocm.cc with Triton
         arch_info = _triton.get_arch_info()
-        print(arch_info)
         warp_size = _triton.get_warp_size()
-        print(warp_size)
         gfx_arch_details = re.search('amd.*', arch_info).group(0).strip().split('--')
         arch_triple = gfx_arch_details[0]
-        print(arch_triple)
         arch_name_features = gfx_arch_details[1].split(':')
         arch_name = arch_name_features[0]
-        print(arch_name)
         arch_features = ""
 
         if (len(arch_name_features) == 3):
             arch_features = "+" + re.search('\\w+', arch_name_features[1]).group(0) + ","\
                             "-" + re.search('\\w+', arch_name_features[2]).group(0)
-        print(arch_features)
         return [arch_triple, arch_name, arch_features, warp_size]
     except BaseException:
         return None
@@ -174,10 +169,7 @@ def compile_ttir_inplace(
     dump: bool = False,
 ) -> Tuple[bytes, str, int, Dict[str, str]]:
   """Compiles a TTIR module to CUBIN (the TTIR is modified in-place)."""
-  print("compile_ttir_inplace")
   compute_capability = triton_kernel_call_lib.get_compute_capability(device)
-  print(compute_capability)
-  print("get details")
   arch_full_details = get_amdgpu_arch_fulldetails()
   gfx_arch = os.environ.get('MI_GPU_ARCH', arch_full_details[1])
   if num_stages is None:
@@ -186,7 +178,6 @@ def compile_ttir_inplace(
   if dump:
     print(ttir)
   try:
-    print("do optimizations")
     ttir = tc.optimize_ttir(ttir, gfx_arch)
     ttgir = tc.ttir_to_ttgir(ttir, num_warps, 64)
     ttgir = tc.optimize_ttgir(ttgir, num_stages, gfx_arch)
@@ -198,7 +189,6 @@ def compile_ttir_inplace(
     print(ttgir)
   extern_libs = {}
   try:
-    print("do ttgir_to_llir")
     llir = tc.ttgir_to_llir(ttgir, extern_libs, gfx_arch)
   except RuntimeError as e:
     ttgir.dump()
@@ -206,24 +196,13 @@ def compile_ttir_inplace(
   shared_mem = _triton.get_shared_memory_size(ttgir)
   if dump:
     print(llir)
-  #ptx = tc.llir_to_ptx(llir, compute_capability)
-  print("do llir_to_amdgcn")
   hsa = tc.llir_to_amdgcn_and_hsaco(llir, gfx_arch,
                                           arch_full_details[0],
                                           arch_full_details[2])
   if dump:
     print(hsa)
-  print(hsa[0])
-  print("---")
-  print(hsa[1])
-  #name = ptx_get_kernel_name(ptx)
   name = get_kernel_name(hsa)
-  print(name)
-  #cubin = tc.ptx_to_cubin(ptx, compute_capability)
   asm.update(llir=llir, hsa=hsa)
-  #return cubin, name, shared_mem, asm
-  print("return")
-  #data = Path(hsa[1]).read_bytes()
   return hsa, name, shared_mem, asm
 
 
@@ -278,12 +257,10 @@ def get_or_create_triton_kernel(
         num_stages=num_stages,
         dump=dump,
     )
-    print("do triton_kernel_call_lib.TritonKernel")
     kernel = triton_kernel_call_lib.TritonKernel(
         cubin[1], name, num_warps, shared_mem
     )
     _COMPILED_KERNEL_CACHE[cache_key] = kernel
-    print("return from get or create")
 
   return kernel, specialization
 
@@ -411,7 +388,6 @@ def triton_kernel_call_lowering(
           dump=debug,
       )
 
-      print("enumerate")
       kernel_params = []
       zeroed_params_with_sizes = dict(params["zeroed_params_with_sizes"])
       for i, (arg, dtype) in enumerate(zip(args, arg_dtypes)):
@@ -427,11 +403,6 @@ def triton_kernel_call_lowering(
               triton_kernel_call_lib.create_scalar_parameter(arg, dtype)
           )
 
-      print("kernel_calls.append")
-      #print(kernel[0])
-      #print("---")
-      #print(kernel[1])
-      print(kernel)
       kernel_calls.append(
           triton_kernel_call_lib.TritonKernelCall(
               kernel,
@@ -442,7 +413,6 @@ def triton_kernel_call_lowering(
           )
       )
 
-    print("more than one?")
     if len(kernel_calls) > 1:
       named_scalar_args = {fn.arg_names[i]: v for i, _, v in scalar_args}
       input_output_aliases_with_sizes = tuple(
@@ -479,7 +449,6 @@ def triton_kernel_call_lowering(
         )
     )
 
-  print("do mhlo.CustomCallOp")
   return mhlo.CustomCallOp(
       out_types,
       array_args,
@@ -605,7 +574,6 @@ def triton_call(
     raise ValueError(
         "`triton_call` is only available when `triton` is installed."
     )
-  print("register custom call target")
   xc.register_custom_call_target(
       call_name, triton_kernel_call_lib.get_custom_call(), platform="ROCM"
   )
@@ -626,8 +594,6 @@ def triton_call(
   if input_output_aliases is None:
     input_output_aliases = {}
 
-  print("do triton_kernel_call_p.bind")
-  print(kernel)
   out_flat = triton_kernel_call_p.bind(
       *array_args,
       fn=kernel,
