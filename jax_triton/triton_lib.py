@@ -193,7 +193,12 @@ def compile_ttir_inplace(
   except RuntimeError as e:
     ttgir.dump()
     raise ValueError("TTGIR->LLIR pass failed!") from e
+
+  print("extern_libs: ", extern_libs)
+  # print("llir: ", llir)
+  # exit()
   shared_mem = _triton.get_shared_memory_size(ttgir)
+  # shared_mem = 1024
   if dump:
     print(llir)
   hsa = tc.llir_to_amdgcn_and_hsaco(llir, gfx_arch,
@@ -257,6 +262,12 @@ def get_or_create_triton_kernel(
         num_stages=num_stages,
         dump=dump,
     )
+    # print(f"cubin: {cubin}")
+    # print(f"name: {name}")
+    # print(f"num_warps: {num_warps}")
+    # print(f"num_stages: {num_stages}")
+    # print(f"shared_mem: {shared_mem}")
+    print("do triton_kernel_call_lib.TritonKernel")
     kernel = triton_kernel_call_lib.TritonKernel(
         cubin[1], name, num_warps, shared_mem
     )
@@ -594,6 +605,18 @@ def triton_call(
   if input_output_aliases is None:
     input_output_aliases = {}
 
+  # print(f"array_args:{array_args}")
+  # print(f"kernel: {kernel}")
+  # print(f"tuple(scalar_args): {tuple(scalar_args)}")
+  # print(f"call_name: {call_name}")
+  # print(f"tuple(flat_out_shapes): {tuple(flat_out_shapes)}")
+  # print(f"grid: {grid}")
+  # print(f"num_warps: {num_warps}")
+  # print(f"num_stages: {num_stages}")
+  # print(f"tuple(input_output_aliases.items()): {tuple(input_output_aliases.items())}")
+  # print(f"zeroed_outputs: {zeroed_outputs}")
+  # print(f"debug: {debug}")
+  # print(f"metaparams: {metaparams}")
   out_flat = triton_kernel_call_p.bind(
       *array_args,
       fn=kernel,

@@ -1,6 +1,8 @@
+#!/bin/bash
+
 set -o xtrace
 
-alias drun='sudo docker run -it --rm --network=host --user root --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
+drun='sudo docker run -it --rm --network=host --user root --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined'
 
 # DEVICES="--gpus all"
 DEVICES="--device=/dev/kfd --device=/dev/dri"
@@ -27,7 +29,7 @@ bash scripts/docker_build.sh $DOCKERFILE_PATH
 # start new container
 docker stop $CONTAINER_NAME
 docker rm $CONTAINER_NAME
-CONTAINER_ID=$(drun -d -w $WORK_DIR --name $CONTAINER_NAME $MEMORY $VOLUMES $DEVICES $IMAGE_NAME)
+CONTAINER_ID=$($drun -d -w $WORK_DIR --name $CONTAINER_NAME $MEMORY $VOLUMES $DEVICES $IMAGE_NAME)
 echo "CONTAINER_ID: $CONTAINER_ID"
 # docker cp . $CONTAINER_ID:$WORK_DIR
 # docker exec $CONTAINER_ID bash -c "bash scripts/amd/run.sh"

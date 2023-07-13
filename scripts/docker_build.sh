@@ -2,7 +2,7 @@
 # set -o xtrace
 
 # set path
-DOCKERFILE_PATH=$1
+DOCKERFILE_PATH="${1:-./jax-triton.Dockerfile}"
 
 # get tag
 DOCKERFILE_NAME=$(basename $DOCKERFILE_PATH)
