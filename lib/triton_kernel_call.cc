@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <iostream>
 
 #include "absl/base/call_once.h"
 #include "absl/base/optimization.h"
@@ -107,11 +108,44 @@ class TritonKernel {
       return it->second;
     }
 
+    //ROCM_RETURN_IF_ERROR(hipCtxPushCurrent(context));
+    //absl::Cleanup ctx_restorer = [] { hipCtxPopCurrent(nullptr); };
+    // Open HSACO file
+    auto hsaco_path = module_image_.c_str();
+    FILE *hsaco_file;
+    if ((hsaco_file = fopen(hsaco_path, "rb")) == NULL) {
+      std::cout << "Failed to read HSACO file" << std::endl;
+    }
+
+    // Read HSCAO file into Buffer
+    fseek(hsaco_file, 0L, SEEK_END);
+    size_t hsaco_file_size = ftell(hsaco_file);
+    unsigned char *hsaco =
+        (unsigned char *)malloc(hsaco_file_size * sizeof(unsigned char));
+    rewind(hsaco_file);
+    fread(hsaco, sizeof(unsigned char), hsaco_file_size, hsaco_file);
+    fclose(hsaco_file);
+
+    // set HIP options
+    hipJitOption opt[] = {hipJitOptionErrorLogBufferSizeBytes,
+                          hipJitOptionErrorLogBuffer,
+                          hipJitOptionInfoLogBufferSizeBytes,
+                          hipJitOptionInfoLogBuffer, hipJitOptionLogVerbose};
+    const unsigned int errbufsize = 8192;
+    const unsigned int logbufsize = 8192;
+    char _err[errbufsize];
+    char _log[logbufsize];
+    void *optval[] = {(void *)(uintptr_t)errbufsize, (void *)_err,
+                      (void *)(uintptr_t)logbufsize, (void *)_log, (void *)1};
+
     ROCM_RETURN_IF_ERROR(hipCtxPushCurrent(context));
     absl::Cleanup ctx_restorer = [] { hipCtxPopCurrent(nullptr); };
 
+    std::cout << module_image_.c_str() << std::endl;
     hipModule_t module;
-    ROCM_RETURN_IF_ERROR(hipModuleLoadData(&module, module_image_.c_str()));
+    void* hsaco_data = const_cast<char*>(module_image_.c_str());
+    //ROCM_RETURN_IF_ERROR(hipModuleLoadData(&module, hsaco_data));
+    ROCM_RETURN_IF_ERROR(hipModuleLoadDataEx(&module, hsaco, 5, opt, optval));
     modules_.push_back(OwnedhipModule(module, hipModuleDeleter()));
 
     hipFunction_t function;

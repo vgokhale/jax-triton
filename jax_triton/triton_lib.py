@@ -22,6 +22,7 @@ import weakref
 import re
 
 from typing import Any, Callable, Dict, Optional, Protocol, Sequence, Tuple, Union
+from pathlib import Path
 
 from absl import logging
 import jax
@@ -160,6 +161,11 @@ def get_amdgpu_arch_fulldetails():
     except BaseException:
         return None
 
+def load_hsaco_file(filename) -> str:
+    f = open(filename, "r")
+    module = f.read()
+    return module
+
 def compile_ttir_inplace(
     ttir,
     device: int = 0,
@@ -207,6 +213,9 @@ def compile_ttir_inplace(
                                           arch_full_details[2])
   if dump:
     print(hsa)
+  print(hsa[0])
+  print("---")
+  print(hsa[1])
   #name = ptx_get_kernel_name(ptx)
   name = get_kernel_name(hsa)
   print(name)
@@ -214,6 +223,7 @@ def compile_ttir_inplace(
   asm.update(llir=llir, hsa=hsa)
   #return cubin, name, shared_mem, asm
   print("return")
+  #data = Path(hsa[1]).read_bytes()
   return hsa, name, shared_mem, asm
 
 
@@ -270,7 +280,7 @@ def get_or_create_triton_kernel(
     )
     print("do triton_kernel_call_lib.TritonKernel")
     kernel = triton_kernel_call_lib.TritonKernel(
-        cubin[0], name, num_warps, shared_mem
+        cubin[1], name, num_warps, shared_mem
     )
     _COMPILED_KERNEL_CACHE[cache_key] = kernel
     print("return from get or create")
@@ -418,6 +428,10 @@ def triton_kernel_call_lowering(
           )
 
       print("kernel_calls.append")
+      #print(kernel[0])
+      #print("---")
+      #print(kernel[1])
+      print(kernel)
       kernel_calls.append(
           triton_kernel_call_lib.TritonKernelCall(
               kernel,
@@ -612,6 +626,8 @@ def triton_call(
   if input_output_aliases is None:
     input_output_aliases = {}
 
+  print("do triton_kernel_call_p.bind")
+  print(kernel)
   out_flat = triton_kernel_call_p.bind(
       *array_args,
       fn=kernel,
