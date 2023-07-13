@@ -63,7 +63,7 @@ absl::Status ToStatus(hipError_t result, const char* file, int64_t line,
 
   const char* str;
   CHECK_EQ(hipDrvGetErrorName(result, &str), hipSuccess);
-  return absl::InternalError(absl::StrFormat("%s:%d: CUDA call `%s` failed: %s",
+  return absl::InternalError(absl::StrFormat("%s:%d: ROCM call `%s` failed: %s",
                                              file, line, expr, str));
 }
 

@@ -273,6 +273,7 @@ def get_or_create_triton_kernel(
         cubin[0], name, num_warps, shared_mem
     )
     _COMPILED_KERNEL_CACHE[cache_key] = kernel
+    print("return from get or create")
 
   return kernel, specialization
 
@@ -400,6 +401,7 @@ def triton_kernel_call_lowering(
           dump=debug,
       )
 
+      print("enumerate")
       kernel_params = []
       zeroed_params_with_sizes = dict(params["zeroed_params_with_sizes"])
       for i, (arg, dtype) in enumerate(zip(args, arg_dtypes)):
@@ -415,6 +417,7 @@ def triton_kernel_call_lowering(
               triton_kernel_call_lib.create_scalar_parameter(arg, dtype)
           )
 
+      print("kernel_calls.append")
       kernel_calls.append(
           triton_kernel_call_lib.TritonKernelCall(
               kernel,
@@ -425,6 +428,7 @@ def triton_kernel_call_lowering(
           )
       )
 
+    print("more than one?")
     if len(kernel_calls) > 1:
       named_scalar_args = {fn.arg_names[i]: v for i, _, v in scalar_args}
       input_output_aliases_with_sizes = tuple(
@@ -461,6 +465,7 @@ def triton_kernel_call_lowering(
         )
     )
 
+  print("do mhlo.CustomCallOp")
   return mhlo.CustomCallOp(
       out_types,
       array_args,
@@ -586,8 +591,9 @@ def triton_call(
     raise ValueError(
         "`triton_call` is only available when `triton` is installed."
     )
+  print("register custom call target")
   xc.register_custom_call_target(
-      call_name, triton_kernel_call_lib.get_custom_call(), platform="CUDA"
+      call_name, triton_kernel_call_lib.get_custom_call(), platform="ROCM"
   )
   out_shape = tree_util.tree_map(
       lambda a: jax.ShapeDtypeStruct(a.shape, a.dtype), out_shape)
