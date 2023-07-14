@@ -27,10 +27,10 @@ from triton.compiler import code_generator as code_gen
 import triton.language as tl
 import jax_triton as jt
 from jax_triton import triton_lib
-try:
-  import torch
-except ModuleNotFoundError:
-  torch = None
+#try:
+#  import torch
+#except ModuleNotFoundError:
+#  torch = None
 
 config.parse_flags_with_absl()
 

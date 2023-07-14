@@ -108,24 +108,6 @@ class TritonKernel {
       return it->second;
     }
 
-    //ROCM_RETURN_IF_ERROR(hipCtxPushCurrent(context));
-    //absl::Cleanup ctx_restorer = [] { hipCtxPopCurrent(nullptr); };
-    // Open HSACO file
-    auto hsaco_path = module_image_.c_str();
-    FILE *hsaco_file;
-    if ((hsaco_file = fopen(hsaco_path, "rb")) == NULL) {
-      std::cout << "Failed to read HSACO file" << std::endl;
-    }
-
-    // Read HSCAO file into Buffer
-    fseek(hsaco_file, 0L, SEEK_END);
-    size_t hsaco_file_size = ftell(hsaco_file);
-    unsigned char *hsaco =
-        (unsigned char *)malloc(hsaco_file_size * sizeof(unsigned char));
-    rewind(hsaco_file);
-    fread(hsaco, sizeof(unsigned char), hsaco_file_size, hsaco_file);
-    fclose(hsaco_file);
-
     // set HIP options
     hipJitOption opt[] = {hipJitOptionErrorLogBufferSizeBytes,
                           hipJitOptionErrorLogBuffer,
@@ -143,8 +125,7 @@ class TritonKernel {
 
     hipModule_t module;
     void* hsaco_data = const_cast<char*>(module_image_.c_str());
-    //ROCM_RETURN_IF_ERROR(hipModuleLoadData(&module, hsaco_data));
-    ROCM_RETURN_IF_ERROR(hipModuleLoadDataEx(&module, hsaco, 5, opt, optval));
+    ROCM_RETURN_IF_ERROR(hipModuleLoadDataEx(&module, hsaco_data, 5, opt, optval));
     modules_.push_back(OwnedhipModule(module, hipModuleDeleter()));
 
     hipFunction_t function;
@@ -518,14 +499,14 @@ PYBIND11_MODULE(triton_kernel_call_lib, m) {
   m.def("create_scalar_parameter",
         py::overload_cast<py::bool_, std::string_view>(&EncodeKernelParameter));
   m.def("get_compute_capability", [](int device) -> absl::StatusOr<int> {
-    //int major, minor;
-    //ROCM_RETURN_IF_ERROR(hipInit(device));
-    //ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
-    //    &major, hipDeviceAttributeComputeCapabilityMajor, device));
-    //ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
-    //    &minor, hipDeviceAttributeComputeCapabilityMinor, device));
-    //return major * 10 + minor;
-    return 80;
+    int major, minor;
+    ROCM_RETURN_IF_ERROR(hipInit(device));
+    ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
+        &major, hipDeviceAttributeComputeCapabilityMajor, device));
+    ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
+        &minor, hipDeviceAttributeComputeCapabilityMinor, device));
+    return major * 10 + minor;
+    //return 80;
   });
 }
 

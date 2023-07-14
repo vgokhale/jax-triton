@@ -49,9 +49,13 @@ from jax_triton.pallas import primitives
 from jax_triton.triton_lib import compile_ttir_inplace
 from jax_triton.triton_lib import get_triton_type
 import numpy as np
+import triton
 from triton._C.libtriton.triton import ir as tl_ir
 from triton.compiler import code_generator as code_gen
+from triton.compiler import compiler as tc
 import triton.language as tl
+import triton._C.libtriton.triton as _triton
+from pathlib import Path
 
 map, unsafe_map = util.safe_map, map
 zip, unsafe_zip = util.safe_zip, zip
@@ -1338,7 +1342,7 @@ def compile_jaxpr(
       num_stages=num_stages,
       dump=debug,
   )
-  return TritonCompilationResult(cubin, name, asm, shared_mem, lowering_result)
+  return TritonCompilationResult(Path(cubin[1]).read_bytes(), name, asm, shared_mem, lowering_result)
 
 
 def pallas_call_lowering(

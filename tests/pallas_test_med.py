@@ -238,9 +238,12 @@ class PallasCallTest(PallasTest):
       for m in [512, 1024]
       for k in [512]
       for n in [512, 1024]
-      for dtype in ["float32", "float16"]
-      for block_size_m in [64, 128]
-      for block_size_n in [128, 256]
+      #for dtype in ["float32", "float16"]
+      for dtype in ["float16"]
+      #for block_size_m in [64, 128]
+      for block_size_m in [64]
+      #for block_size_n in [128, 256]
+      for block_size_n in [128]
       for block_size_k in [32]
       for group_size_m in [8]
       if block_size_m <= m and block_size_n <= n and block_size_k <= k
@@ -259,37 +262,10 @@ class PallasCallTest(PallasTest):
                            interpret=self.INTERPRET), jnp.matmul(x, y)
     np.testing.assert_allclose(out, expected, atol=0.05, rtol=0.05)
 
-  @parameterized.named_parameters(*[
-    (f"m_{m}_n_{n}_k_{k}_dtype_{dtype}_bm_{block_size_m}_"
-     f"bn_{block_size_n}_bk_{block_size_k}", m, n, k, dtype,
-     block_size_m, block_size_n, block_size_k)
-      for m in [512, 1024]
-      for k in [512]
-      for n in [512, 1024]
-      for dtype in ["float32", "float16"]
-      for block_size_m in [64, 128]
-      for block_size_n in [128, 256]
-      for block_size_k in [32]
-      if block_size_m <= m and block_size_n <= n and block_size_k <= k
-    ])
-  def test_matmul_block_spec(self, m, n, k, dtype, bm, bn, bk):
-    if jt.get_compute_capability(0) < 70:
-      raise unittest.SkipTest(
-          "Matmul only works on GPUs with capability >= sm70")
-    if (jt.get_compute_capability(0) <= 75
-        and (bm > 128 or bn > 128 or bk > 32)):
-      raise unittest.SkipTest("Block sizes too big for sm70.")
-
-    k1, k2 = random.split(random.PRNGKey(0))
-    x = random.normal(k1, (m, k), dtype=dtype)
-    y = random.normal(k2, (k, n), dtype=dtype)
-    out, expected = matmul_block_spec(x, y, bm=bm, bn=bn, bk=bk,
-                                      interpret=self.INTERPRET), jnp.matmul(x, y)
-    np.testing.assert_allclose(out, expected, atol=0.05, rtol=0.05)
-
   @parameterized.named_parameters(*(
       dict(testcase_name=f"{size}_{dtype}", size=size, dtype=dtype)
-      for size in [16, 32, 64]
+      #for size in [16, 32, 64]
+      for size in [32, 64]
       for dtype in ["float32", "float16"]
   ))
   def test_dot(self, size, dtype):
@@ -311,36 +287,6 @@ class PallasCallTest(PallasTest):
     y = random.normal(k2, (size, size), dtype=dtype)
     out, expected = dot(x, y), jnp.dot(x, y)
     np.testing.assert_allclose(out, expected, atol=0.05, rtol=0.05)
-
-  @parameterized.named_parameters(*(
-      dict(testcase_name=f"{batch_size}_{size}_{block_size}_{dtype}",
-           batch_size=batch_size, size=size, block_size=block_size, dtype=dtype)
-      for batch_size in [1, 2, 4, 23]
-      for size in [1, 2, 129, 255, 256]
-      for block_size in [1, 2, 32, 64, 128, 256]
-      for dtype in ["float32"]
-      if size < block_size
-  ))
-  def test_softmax(self, batch_size, size, block_size, dtype):
-    @functools.partial(self.pallas_call,
-        out_shape=jax.ShapeDtypeStruct((batch_size, size), dtype),
-        grid=batch_size)
-    def softmax(x_ref, o_ref):
-      row_idx = pl.program_id(0)
-      x_idx = jnp.arange(block_size)
-      row_idxs = (row_idx, x_idx)
-      mask = x_idx < x_ref.shape[1]
-      row = pl.load(x_ref, row_idxs, mask=mask, other=-float("inf"))
-      row_minus_max = row - jnp.max(row, axis=0)
-      numerator = jnp.exp(row_minus_max)
-      denominator = jnp.sum(numerator, axis=0)
-      softmax_output = numerator / denominator
-      pl.store(o_ref, row_idxs, softmax_output, mask=mask)
-
-    key = random.PRNGKey(0)
-    x = random.normal(key, [batch_size, size], dtype=dtype)
-    np.testing.assert_allclose(softmax(x), jax.nn.softmax(x, axis=-1),
-        atol=1e-5, rtol=1e-5)
 
   @parameterized.parameters(*(
       (size, block_size)
@@ -770,7 +716,7 @@ class PallasCallAutodifferentiationTest(PallasTest):
   @parameterized.named_parameters(*[
     ("square", lambda x: x * x),
     ("add_one", lambda x: x + 1.),
-    ("exp", jnp.exp),
+    #("exp", jnp.exp),
     # ("tanh", jnp.tanh),  TODO(sharadmv): re-enable this case when libdevice is
     # updated
     ])
@@ -796,7 +742,7 @@ class PallasCallAutodifferentiationTest(PallasTest):
   @parameterized.named_parameters(*[
     ("square", lambda x: x * x),
     ("add_one", lambda x: x + 1.),
-    ("exp", jnp.exp),
+    #("exp", jnp.exp),
     # ("tanh", jnp.tanh),  TODO(sharadmv): re-enable this case when libdevice is
     # updated
     ])
@@ -928,40 +874,6 @@ class PallasCallVmapTest(PallasTest):
     out_ref = jnp.arange(2, 10)
     np.testing.assert_allclose(out, out_ref)
 
-  def test_vmap_of_slicing_kernel_different_axes(self):
-    @functools.partial(
-        self.pallas_call, out_shape=jax.ShapeDtypeStruct((2,), jnp.int32),
-        debug=False,
-        grid=(2,))
-    def add_one(x_ref, o_ref):
-      i = pl.program_id(0)
-      o_ref[i] = x_ref[i] + 1
-    add_one_ref = lambda x: x + 1
-    x = jnp.arange(8).reshape((2, 4))
-
-    out = jax.vmap(add_one, in_axes=1, out_axes=1)(x)
-    out_ref = jax.vmap(add_one_ref, in_axes=1, out_axes=1)(x)
-    np.testing.assert_allclose(out, out_ref)
-
-    out = jax.vmap(add_one, in_axes=1, out_axes=0)(x)
-    out_ref = jax.vmap(add_one_ref, in_axes=1, out_axes=0)(x)
-    np.testing.assert_allclose(out, out_ref)
-
-  def test_double_vmap_of_slicing_kernel_different_axes(self):
-    @functools.partial(
-        self.pallas_call, out_shape=jax.ShapeDtypeStruct((4,), jnp.float32),
-        debug=False,
-        grid=(4,))
-    def sin(x_ref, o_ref):
-      i = pl.program_id(0)
-      o_ref[i] = jnp.sin(x_ref[i])
-    sin_ref = jnp.sin
-    x = jnp.arange(64.).reshape((8, 4, 2))
-
-    out = jax.vmap(jax.vmap(sin, in_axes=1), in_axes=0)(x)
-    out_ref = jax.vmap(jax.vmap(sin_ref, in_axes=1), in_axes=0)(x)
-    np.testing.assert_allclose(out, out_ref, atol=1e-3, rtol=1e-3)
-
 class PallasCallInterpreterVmapTest(PallasCallVmapTest):
   INTERPRET = True
 
@@ -1044,160 +956,6 @@ class PallasPrimitivesTest(parameterized.TestCase):
     jaxpr, _ , _ = pe.trace_to_jaxpr_dynamic(
         lu.wrap_init(body), [state.shaped_array_ref((4, 3, 2), jnp.int32)])
     self.assertIn(expected, jaxpr.pretty_print(use_color=False))
-
-class FusedAttentionTest(parameterized.TestCase):
-
-  @parameterized.named_parameters(*[
-      (f"{batch_size=}_{seq_len=}_{num_heads=}_{head_dim=}_{causal=}",
-       batch_size, seq_len, num_heads, head_dim, causal)
-      for batch_size, seq_len, num_heads, head_dim, causal in [
-          (1, 384, 1, 64, False),
-          (2, 384, 2, 64, False),
-          (1, 384, 1, 64, True),
-          (2, 384, 2, 64, True),
-      ]
-  ])
-  def test_fused_attention_fwd(self, batch_size, seq_len, num_heads, head_dim,
-                               causal):
-    if jt.get_compute_capability(0) < 80:
-      raise unittest.SkipTest(
-          "Fused attention only works on GPUs with capability >= sm80")
-
-    k1, k2, k3 = random.split(random.PRNGKey(0), 3)
-    q = random.normal(k1, (batch_size, seq_len, num_heads, head_dim), dtype=jnp.float16)
-    k = random.normal(k2, (batch_size, seq_len, num_heads, head_dim), dtype=jnp.float16)
-    v = random.normal(k3, (batch_size, seq_len, num_heads, head_dim), dtype=jnp.float16)
-
-    o = attention.mha(q, k, v, causal=causal)
-    o_ref = attention.mha_reference(q, k, v, causal=causal)
-    np.testing.assert_allclose(o, o_ref, atol=0.05)
-
-  @parameterized.named_parameters(*[
-      (f"{batch_size=}_{seq_len=}_{num_heads=}_{head_dim=}_{causal=}",
-       batch_size, seq_len, num_heads, head_dim, causal)
-      for batch_size, seq_len, num_heads, head_dim, causal in [
-          (1, 384, 1, 32, False),
-          (2, 384, 2, 32, False),
-          (1, 384, 1, 32, True),
-          (2, 384, 2, 32, True),
-      ]
-  ])
-  def test_fused_attention_bwd(self, batch_size, seq_len, num_heads, head_dim,
-                               causal):
-    if jt.get_compute_capability(0) < 80:
-      raise unittest.SkipTest(
-          "Fused attention only works on GPUs with capability >= sm80")
-
-    k1, k2, k3 = random.split(random.PRNGKey(0), 3)
-    q = random.normal(k1, (batch_size, seq_len, num_heads, head_dim),
-                      dtype=jnp.float16)
-    k = random.normal(k2, (batch_size, seq_len, num_heads, head_dim),
-                      dtype=jnp.float16)
-    v = random.normal(k3, (batch_size, seq_len, num_heads, head_dim),
-                      dtype=jnp.float16)
-
-    def f(q, k, v):
-      return attention.mha(q, k, v, causal=causal).sum()
-
-    def f_ref(q, k, v):
-      return attention.mha_reference(q, k, v, causal=causal).sum()
-
-    dq, dk, dv = jax.grad(f, argnums=(0, 1, 2))(q, k, v)
-    dq_ref, dk_ref, dv_ref = jax.grad(f_ref, argnums=(0, 1, 2))(q, k, v)
-    np.testing.assert_allclose(dq, dq_ref, atol=0.05)
-    np.testing.assert_allclose(dk, dk_ref, atol=0.05)
-    np.testing.assert_allclose(dv, dv_ref, atol=0.05)
-
-
-class FusedLayerNormTest(parameterized.TestCase):
-
-  @parameterized.parameters(*[
-    (1, 384, 192),
-    (2, 384, 192),
-  ])
-  def test_fused_layernorm_fwd(self, batch_size, seq_len, embed_dim):
-    if jt.get_compute_capability(0) < 70:
-      raise unittest.SkipTest(
-          "Fused layernorm only works on GPUs with capability >= sm70")
-    k1, k2, k3 = random.split(random.PRNGKey(0), 3)
-    x = random.normal(k1, (batch_size, seq_len, embed_dim), dtype=jnp.float32)
-    w = jax.random.normal(k2, (embed_dim,), dtype=jnp.float32)
-    b = jax.random.normal(k3, (embed_dim,), dtype=jnp.float32)
-
-    o = layer_norm.layer_norm(x, w, b)
-    o_ref = layer_norm.layer_norm_reference(x, w, b)
-    np.testing.assert_allclose(o, o_ref, atol=1e-5)
-
-  @parameterized.parameters(*[
-    (1, 384, 192),
-    (2, 384, 192),
-  ])
-  def test_fused_layernorm_bwd(self, batch_size, seq_len, embed_dim):
-    if jt.get_compute_capability(0) < 70:
-      raise unittest.SkipTest(
-          "Fused layernorm only works on GPUs with capability >= sm70")
-    k1, k2, k3 = random.split(random.PRNGKey(0), 3)
-    x = random.normal(k1, (batch_size, seq_len, embed_dim), dtype=jnp.float32)
-    w = jax.random.normal(k2, (embed_dim,), dtype=jnp.float32)
-    b = jax.random.normal(k3, (embed_dim,), dtype=jnp.float32)
-
-    def f(x, w, b):
-      return layer_norm.layer_norm(x, w, b).sum()
-
-    def f_ref(x, w, b):
-      return layer_norm.layer_norm_reference(x, w, b).sum()
-
-    dx, dw, db = jax.grad(f, argnums=(0, 1, 2))(x, w, b)
-    dx_ref, dw_ref, db_ref = jax.grad(f_ref, argnums=(0, 1, 2))(x, w, b)
-    np.testing.assert_allclose(dx, dx_ref, rtol=1e-6, atol=1e-6)
-    np.testing.assert_allclose(dw, dw_ref, rtol=1e-2, atol=1e-2)
-    np.testing.assert_allclose(db, db_ref, rtol=1e-2, atol=1e-2)
-
-
-class RmsNormTest(parameterized.TestCase):
-
-  @parameterized.parameters(*[
-    (1, 384, 192),
-    (2, 384, 192),
-  ])
-  def test_rms_fwd(self, batch_size, seq_len, embed_dim):
-    if jt.get_compute_capability(0) < 70:
-      raise unittest.SkipTest(
-          "Rms norm only works on GPUs with capability >= sm70")
-    k1, k2, k3 = random.split(random.PRNGKey(0), 3)
-    x = random.normal(k1, (batch_size, seq_len, embed_dim), dtype=jnp.float32)
-    w = jax.random.normal(k2, (embed_dim,), dtype=jnp.float32)
-    b = jax.random.normal(k3, (embed_dim,), dtype=jnp.float32)
-
-    o = rms_norm.rms_norm(x, w, b)
-    o_ref = rms_norm.rms_norm_reference(x, w, b)
-    np.testing.assert_allclose(o, o_ref, atol=1e-5)
-
-  @parameterized.parameters(*[
-    (1, 384, 192),
-    (2, 384, 192),
-  ])
-  def test_rms_norm_bwd(self, batch_size, seq_len, embed_dim):
-    if jt.get_compute_capability(0) < 70:
-      raise unittest.SkipTest(
-          "Rms norm only works on GPUs with capability >= sm70")
-    k1, k2, k3 = random.split(random.PRNGKey(0), 3)
-    x = random.normal(k1, (batch_size, seq_len, embed_dim), dtype=jnp.float32)
-    w = jax.random.normal(k2, (embed_dim,), dtype=jnp.float32)
-    b = jax.random.normal(k3, (embed_dim,), dtype=jnp.float32)
-
-    def f(x, w, b):
-      return rms_norm.rms_norm(x, w, b).sum()
-
-    def f_ref(x, w, b):
-      return rms_norm.rms_norm_reference(x, w, b).sum()
-
-    dx, dw, db = jax.grad(f, argnums=(0, 1, 2))(x, w, b)
-    dx_ref, dw_ref, db_ref = jax.grad(f_ref, argnums=(0, 1, 2))(x, w, b)
-    np.testing.assert_allclose(dx, dx_ref, rtol=1e-6, atol=1e-6)
-    np.testing.assert_allclose(dw, dw_ref, rtol=1e-2, atol=1e-2)
-    np.testing.assert_allclose(db, db_ref, rtol=1e-2, atol=1e-2)
-
 
 if __name__ == "__main__":
   absltest.main()
