@@ -518,13 +518,14 @@ PYBIND11_MODULE(triton_kernel_call_lib, m) {
   m.def("create_scalar_parameter",
         py::overload_cast<py::bool_, std::string_view>(&EncodeKernelParameter));
   m.def("get_compute_capability", [](int device) -> absl::StatusOr<int> {
-    int major, minor;
-    ROCM_RETURN_IF_ERROR(hipInit(device));
-    ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
-        &major, hipDeviceAttributeComputeCapabilityMajor, device));
-    ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
-        &minor, hipDeviceAttributeComputeCapabilityMinor, device));
-    return major * 10 + minor;
+    //int major, minor;
+    //ROCM_RETURN_IF_ERROR(hipInit(device));
+    //ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
+    //    &major, hipDeviceAttributeComputeCapabilityMajor, device));
+    //ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
+    //    &minor, hipDeviceAttributeComputeCapabilityMinor, device));
+    //return major * 10 + minor;
+    return 80;
   });
 }
 

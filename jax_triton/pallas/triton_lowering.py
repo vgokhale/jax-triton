@@ -172,7 +172,7 @@ def lower_jaxpr_to_triton_module(
   assert len(jaxpr.outvars) == 0
   prototype = tl.function_type([], arg_types)
   out = prototype.to_ir(builder)
-  fn = builder.get_or_insert_function(module, name, out, "public")
+  fn = builder.get_or_insert_function(module, name, out, "public", False)
   module.push_back(fn)
   entry = fn.add_entry_block()
   args = []
@@ -1446,9 +1446,9 @@ def pallas_call_lowering(
   return results
 
 
-mlir.register_lowering(pallas_call_p, pallas_call_lowering, platform="cuda")
+mlir.register_lowering(pallas_call_p, pallas_call_lowering, platform="rocm")
 xc.register_custom_call_target(
     "triton_kernel_call",
     triton_kernel_call_lib.get_custom_call(),
-    platform="CUDA",
+    platform="ROCM",
 )
