@@ -194,7 +194,7 @@ def compile_ttir_inplace(
     ttgir.dump()
     raise ValueError("TTGIR->LLIR pass failed!") from e
 
-  print("extern_libs: ", extern_libs)
+  # print("extern_libs: ", extern_libs)
   # print("llir: ", llir)
   # exit()
   shared_mem = _triton.get_shared_memory_size(ttgir)
@@ -267,9 +267,9 @@ def get_or_create_triton_kernel(
     # print(f"num_warps: {num_warps}")
     # print(f"num_stages: {num_stages}")
     # print(f"shared_mem: {shared_mem}")
-    print("do triton_kernel_call_lib.TritonKernel")
+    # print("do triton_kernel_call_lib.TritonKernel")
     kernel = triton_kernel_call_lib.TritonKernel(
-        cubin[1], name, num_warps, shared_mem
+        Path(cubin[1]).read_bytes(), name, num_warps, shared_mem
     )
     _COMPILED_KERNEL_CACHE[cache_key] = kernel
 

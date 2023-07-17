@@ -87,7 +87,7 @@ class TritonKernel {
         shared_mem_bytes_(shared_mem_bytes) {}
 
   absl::Status Launch(hipStream_t stream, uint32_t grid[3], void** params) {
-    std::cout << "TritonKernel::Launch" << std::endl;
+    // std::cout << "TritonKernel::Launch" << std::endl;
     hipCtx_t context;
     hipDevice_t device;
     int device_id = hipGetStreamDeviceId(stream);
@@ -108,29 +108,29 @@ class TritonKernel {
 
  private:
   absl::StatusOr<hipFunction_t> GetFunctionForContext(hipCtx_t context) {
-    std::cout << "TritonKernel::GetFunctionForContext" << std::endl;
-    std::cout << "module_image_: " <<module_image_<<std::endl;
+    // std::cout << "TritonKernel::GetFunctionForContext" << std::endl;
+    // std::cout << "module_image_: " <<module_image_<<std::endl;
     absl::MutexLock lock(&mutex_);
     auto it = functions_.find(context);
     if (it != functions_.end()) {
       return it->second;
     }
 
-    // Open HSACO file
-    auto hsaco_path = module_image_.c_str();
-    FILE *hsaco_file;
-    if ((hsaco_file = fopen(hsaco_path, "rb")) == NULL) {
-      std::cout << "Failed to read HSACO file" << std::endl;
-    }
+    // // Open HSACO file
+    // auto hsaco_path = module_image_.c_str();
+    // FILE *hsaco_file;
+    // if ((hsaco_file = fopen(hsaco_path, "rb")) == NULL) {
+    //   std::cout << "Failed to read HSACO file" << std::endl;
+    // }
 
-    // Read HSCAO file into Buffer
-    fseek(hsaco_file, 0L, SEEK_END);
-    size_t hsaco_file_size = ftell(hsaco_file);
-    unsigned char *hsaco =
-        (unsigned char *)malloc(hsaco_file_size * sizeof(unsigned char));
-    rewind(hsaco_file);
-    fread(hsaco, sizeof(unsigned char), hsaco_file_size, hsaco_file);
-    fclose(hsaco_file);
+    // // Read HSCAO file into Buffer
+    // fseek(hsaco_file, 0L, SEEK_END);
+    // size_t hsaco_file_size = ftell(hsaco_file);
+    // unsigned char *hsaco =
+    //     (unsigned char *)malloc(hsaco_file_size * sizeof(unsigned char));
+    // rewind(hsaco_file);
+    // fread(hsaco, sizeof(unsigned char), hsaco_file_size, hsaco_file);
+    // fclose(hsaco_file);
 
     // set HIP options
     hipJitOption opt[] = {hipJitOptionErrorLogBufferSizeBytes,
@@ -148,7 +148,8 @@ class TritonKernel {
     absl::Cleanup ctx_restorer = [] { hipCtxPopCurrent(nullptr); };
 
     hipModule_t module;
-    ROCM_RETURN_IF_ERROR(hipModuleLoadDataEx(&module, hsaco, 5, opt, optval));
+    void* hsaco_data = const_cast<char*>(module_image_.c_str());
+    ROCM_RETURN_IF_ERROR(hipModuleLoadDataEx(&module, hsaco_data, 5, opt, optval));
     modules_.push_back(OwnedhipModule(module, hipModuleDeleter()));
 
     hipFunction_t function;
@@ -222,7 +223,7 @@ class TritonKernelCall : public TritonKernelCallBase {
         parameters_(std::move(parameters)) {}
 
   absl::Status Launch(hipStream_t stream, void** buffers) override final {
-    std::cout<<"TritonKernelCall::Launch"<<std::endl;
+    // std::cout<<"TritonKernelCall::Launch"<<std::endl;
     std::vector<void*> params;
     params.reserve(parameters_.size());
     for (size_t i = 0; i < parameters_.size(); ++i) {
@@ -454,7 +455,7 @@ absl::StatusOr<uint64_t> EncodeKernelParameter(py::bool_ value,
 
 void LaunchTritonKernel(hipStream_t stream, void** buffers, char* opaque,
                         size_t opaque_len) {
-std::cout << "LaunchTritonKernel" << std::endl;
+// std::cout << "LaunchTritonKernel" << std::endl;
 CHECK_EQ(opaque_len, sizeof(TritonKernelCallBase *));
 TritonKernelCallBase *kernel_call;
 std::memcpy(&kernel_call, opaque, sizeof(TritonKernelCallBase *));
