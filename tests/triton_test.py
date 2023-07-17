@@ -101,7 +101,7 @@ class TritonTest(absltest.TestCase):
 
   def test_tanh_kernel(self):
     if is_hip:
-      raise self.SkipTest(f"test_tanh_kernel doesnot work on HIP currently")
+      raise self.skipTest(f"test_tanh_kernel doesnot work on HIP currently")
 
     def tanh(x: jnp.ndarray) -> jnp.ndarray:
       out_shape = jax.ShapeDtypeStruct(shape=x.shape, dtype=x.dtype)

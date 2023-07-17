@@ -88,6 +88,7 @@ class TritonKernel {
 
   absl::Status Launch(hipStream_t stream, uint32_t grid[3], void** params) {
     // std::cout << "TritonKernel::Launch" << std::endl;
+    // TOD0: invetigate
     hipCtx_t context;
     hipDevice_t device;
     int device_id = hipGetStreamDeviceId(stream);
