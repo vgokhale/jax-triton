@@ -18,7 +18,7 @@ chmod -R 777 $LOG_DIR
 # UNIT_TEST="test_amd.py"
 # UNIT_TEST="test_jax.py"
 # UNIT_TEST="tests"
-UNIT_TEST="tests/pallas_test.py"
+# UNIT_TEST="tests/pallas_test.py"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_matmul"
 # UNIT_TEST="tests/pallas_test_med.py"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_add_matrix_block_spec"
