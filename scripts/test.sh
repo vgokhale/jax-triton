@@ -18,18 +18,20 @@ chmod -R 777 $LOG_DIR
 # UNIT_TEST="test_amd.py"
 # UNIT_TEST="test_jax.py"
 # UNIT_TEST="tests"
-# UNIT_TEST="tests/pallas_test.py"
+UNIT_TEST="tests/pallas_test.py"
+# UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_129_256_float32"
+# UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_softmax"
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_matmul"
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_matmul_m_1024_n_1024_k_512_dtype_float16_bm_128_bn_128_bk_32_gm_8"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_matmul"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_add_matrix_block_spec"
 # UNIT_TEST="tests/triton_call_test.py"
 # UNIT_TEST="tests/triton_call_test.py::TritonKernelCallTest::test_add0"
-UNIT_TEST="tests/triton_test.py"
+# UNIT_TEST="tests/triton_test.py"
 # UNIT_TEST="tests/triton_test.py::TritonTest::test_add_kernel"
 # UNIT_TEST="tests/triton_test.py::TritonTest::test_tanh_kernel"
 
-# FILTER="-k 'test_matmul_m'"
+FILTER="-k test_softmax"
 
 LOG_FILE_NAME=$(basename $UNIT_TEST)
 
@@ -50,5 +52,5 @@ if [ "$1" == "backtrace" ]; then
         2>&1 | tee $LOG_DIR/${LOG_FILE_NAME}_backtrace.log
 
 else
-    pytest $OUTPUT_MODE -rfs --verbose "$UNIT_TEST" 2>&1 | tee $LOG_DIR/${LOG_FILE_NAME}.log
+    pytest $OUTPUT_MODE -rfs --verbose "$UNIT_TEST" $FILTER 2>&1 | tee $LOG_DIR/${LOG_FILE_NAME}.log
 fi
