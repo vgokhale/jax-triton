@@ -18,25 +18,33 @@ chmod -R 777 $LOG_DIR
 # UNIT_TEST="test_amd.py"
 # UNIT_TEST="test_jax.py"
 # UNIT_TEST="tests"
-UNIT_TEST="tests/pallas_test.py"
+# UNIT_TEST="tests/pallas_test.py"
+# UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_128_float16" # fails
+# UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_softmax_1_1_128_float16" # passes
+# UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_128_float32" # fails
+# UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_softmax_1_1_128_float32" # passes
+# UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_2_float16"
+# UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_2_float32"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_129_256_float32"
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_softmax"
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_matmul"
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_matmul_m_1024_n_1024_k_512_dtype_float16_bm_128_bn_128_bk_32_gm_8"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_matmul"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_add_matrix_block_spec"
-# UNIT_TEST="tests/triton_call_test.py"
+UNIT_TEST="tests/triton_call_test.py"
 # UNIT_TEST="tests/triton_call_test.py::TritonKernelCallTest::test_add0"
 # UNIT_TEST="tests/triton_test.py"
 # UNIT_TEST="tests/triton_test.py::TritonTest::test_add_kernel"
 # UNIT_TEST="tests/triton_test.py::TritonTest::test_tanh_kernel"
 
-FILTER="-k test_softmax"
+# FILTER="-k test_softmax"
+# FILTER="-k test_matmul"
+# FILTER="-k test_fused_attention_fwd"
 
 LOG_FILE_NAME=$(basename $UNIT_TEST)
 
-OUTPUT_MODE="--capture=tee-sys -v"
-# OUTPUT_MODE="--capture=tee-sys -vv"
+# OUTPUT_MODE="--capture=tee-sys -v"
+OUTPUT_MODE="--capture=tee-sys -vv"
 
 # check for backtrace
 if [ "$1" == "backtrace" ]; then

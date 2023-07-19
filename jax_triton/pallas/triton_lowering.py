@@ -1360,6 +1360,7 @@ def pallas_call_lowering(
     **compiler_params: Any
 ):
   if interpret:
+  # if True:
     return mlir.lower_fun(pallas_call_p.impl, multiple_results=True)(
         ctx,
         *in_nodes,

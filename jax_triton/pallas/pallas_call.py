@@ -80,7 +80,9 @@ def _pallas_call_impl(*args, jaxpr, name, out_shapes, which_linear,
                       input_output_aliases: Tuple[Tuple[int, int], ...],
                       grid_spec: GridSpec,
                       **compiler_params: Any):
+  # print("_pallas_call_impl")
   if interpret:
+  # if True:
     # If we're in interpreter mode, we *scan* over the grid and eval the
     # discharged jaxpr. This should reproduce exactly what compiling to Triton
     # will do.

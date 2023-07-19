@@ -248,9 +248,8 @@ class PallasCallTest(PallasTest):
       if block_size_m <= m and block_size_n <= n and block_size_k <= k
     ])
   def test_matmul(self, m, n, k, dtype, bm, bn, bk, gm):
-    if is_hip:
-        if dtype == "float32" or bm == 128 or bn == 256:
-          raise unittest.SkipTest(f"test_matmul_{dtype}_{bm}_{bn} doesnot work on HIP currently")
+    if is_hip and self.INTERPRET == False:
+      raise unittest.SkipTest(f"test_matmul works only in interpreter mode on HIP")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Matmul only works on GPUs with capability >= sm70")
@@ -278,8 +277,8 @@ class PallasCallTest(PallasTest):
       if block_size_m <= m and block_size_n <= n and block_size_k <= k
     ])
   def test_matmul_block_spec(self, m, n, k, dtype, bm, bn, bk):
-    if is_hip:
-      raise unittest.SkipTest(f"test_matmul_block_spec doesnot work on HIP currently")
+    if is_hip and self.INTERPRET == False:
+      raise unittest.SkipTest(f"test_matmul_block_spec works only in interpreter mode on HIP")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Matmul only works on GPUs with capability >= sm70")
@@ -333,8 +332,8 @@ class PallasCallTest(PallasTest):
       if size < block_size
   ))
   def test_softmax(self, batch_size, size, block_size, dtype):
-    if is_hip:
-      raise unittest.SkipTest(f"test_softmax_{batch_size}_{size}_{block_size}_{dtype} doesnot work on HIP currently")
+    if is_hip and self.INTERPRET == False:
+      raise unittest.SkipTest(f"test_softmax works only in interpreter mode on HIP")
     @functools.partial(self.pallas_call,
         out_shape=jax.ShapeDtypeStruct((batch_size, size), dtype),
         grid=batch_size)

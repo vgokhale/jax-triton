@@ -195,10 +195,11 @@ def compile_ttir_inplace(
     raise ValueError("TTGIR->LLIR pass failed!") from e
 
   # print("extern_libs: ", extern_libs)
-  # print("llir: ", llir)
+ 
   # exit()
   shared_mem = _triton.get_shared_memory_size(ttgir)
-  # shared_mem = 1024
+  # shared_mem = 2048
+  # print(f"shared_mem: {shared_mem}")
   if dump:
     print(llir)
   hsa = tc.llir_to_amdgcn_and_hsaco(llir, gfx_arch,
