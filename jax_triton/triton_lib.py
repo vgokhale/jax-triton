@@ -17,6 +17,7 @@ import collections
 import functools
 import math
 import os
+import shutil
 import types
 import weakref
 import re
@@ -161,6 +162,18 @@ def load_hsaco_file(filename) -> str:
     module = f.read()
     return module
 
+def write_to_file(content: any, file_name: str, dirpath = "log"):
+  # clean and setup log file
+  if not os.path.exists(dirpath):
+    os.mkdir(dirpath)
+  file_path = os.path.join(dirpath, file_name)
+
+  # write file
+  content = str(content)
+  f = open(file_path, "a")
+  f.write(content)
+  f.close()
+
 def compile_ttir_inplace(
     ttir,
     device: int = 0,
@@ -168,6 +181,7 @@ def compile_ttir_inplace(
     num_stages: Optional[int] = None,
     dump: bool = False,
 ) -> Tuple[bytes, str, int, Dict[str, str]]:
+  print("compile_ttir_inplace")
   """Compiles a TTIR module to CUBIN (the TTIR is modified in-place)."""
   compute_capability = triton_kernel_call_lib.get_compute_capability(device)
   arch_full_details = get_amdgpu_arch_fulldetails()
@@ -176,7 +190,8 @@ def compile_ttir_inplace(
     num_stages = 3 if compute_capability >= 75 else 2
   asm = dict(ttir=str(ttir))
   if dump:
-    print(ttir)
+    # print(ttir)
+    write_to_file(ttir, "dump.ttir")
   try:
     ttir = tc.optimize_ttir(ttir, gfx_arch)
     ttgir = tc.ttir_to_ttgir(ttir, num_warps, 64)
@@ -186,7 +201,8 @@ def compile_ttir_inplace(
     raise ValueError("TTIR->TTGIR pass failed!") from e
   asm["ttgir"] = str(ttgir)
   if dump:
-    print(ttgir)
+    # print(ttgir)
+    write_to_file(ttgir, "dump.ttgir")
   extern_libs = {}
   try:
     llir = tc.ttgir_to_llir(ttgir, extern_libs, gfx_arch)
@@ -201,12 +217,15 @@ def compile_ttir_inplace(
   # shared_mem = 2048
   # print(f"shared_mem: {shared_mem}")
   if dump:
-    print(llir)
+    # print(llir)
+    write_to_file(llir, "dump.llir")
   hsa = tc.llir_to_amdgcn_and_hsaco(llir, gfx_arch,
                                           arch_full_details[0],
                                           arch_full_details[2])
   if dump:
-    print(hsa)
+    # print(hsa)
+    write_to_file(hsa[0], "dump.gcn")
+    write_to_file(hsa[1], "dump.hsaco_path")
   name = get_kernel_name(hsa)
   asm.update(llir=llir, hsa=hsa)
   return hsa, name, shared_mem, asm
@@ -222,6 +241,7 @@ def get_or_create_triton_kernel(
     metaparams,
     dump: bool,
 ) -> Tuple[triton_kernel_call_lib.TritonKernel, Any]:
+  print("get_or_create_triton_kernel")
   signature = dict(enumerate(arg_dtypes))
   # TODO(sharadmv,zhangqiaorjc): handle differently aligned pointers
   # We assume that all arrays are aligned to 16 bytes, and Triton may use this
@@ -295,6 +315,7 @@ def triton_kernel_call_lowering(
     debug,
     **metaparams,
 ):
+  print("triton_kernel_call_lowering")
   if jaxlib.version.__version_info__ < (0, 3, 22) and input_output_aliases:
     raise NotImplementedError(
         "`input_output_aliases` only supported on `jaxlib>=0.3.22")

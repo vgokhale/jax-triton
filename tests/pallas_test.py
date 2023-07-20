@@ -51,6 +51,7 @@ is_hip=True
 @functools.partial(jax.jit, static_argnames=["bm", "bn", "gm", "bk",
                                              "interpret", "debug"])
 def matmul(x, y, *, bm, bn, gm, bk, interpret, debug=False):
+  print("matmul")
   m, n, k = x.shape[0], y.shape[1], x.shape[1]
   @functools.partial(
       pl.pallas_call, out_shape=jax.ShapeDtypeStruct((m, n), jnp.float32),
@@ -248,8 +249,9 @@ class PallasCallTest(PallasTest):
       if block_size_m <= m and block_size_n <= n and block_size_k <= k
     ])
   def test_matmul(self, m, n, k, dtype, bm, bn, bk, gm):
-    if is_hip and self.INTERPRET == False:
-      raise unittest.SkipTest(f"test_matmul works only in interpreter mode on HIP")
+    print("test_matmul")
+    # if is_hip and self.INTERPRET == False:
+    #   raise unittest.SkipTest(f"test_matmul works only in interpreter mode on HIP")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Matmul only works on GPUs with capability >= sm70")
@@ -260,7 +262,7 @@ class PallasCallTest(PallasTest):
     x = random.normal(k1, (m, k), dtype=dtype)
     y = random.normal(k2, (k, n), dtype=dtype)
     out, expected = matmul(x, y, bm=bm, bn=bn, bk=bk, gm=gm,
-                           interpret=self.INTERPRET), jnp.matmul(x, y)
+                           interpret=self.INTERPRET, debug=True), jnp.matmul(x, y)
     np.testing.assert_allclose(out, expected, atol=0.05, rtol=0.05)
 
   @parameterized.named_parameters(*[
@@ -1081,8 +1083,8 @@ class FusedAttentionTest(parameterized.TestCase):
   ])
   def test_fused_attention_fwd(self, batch_size, seq_len, num_heads, head_dim,
                                causal):
-    if is_hip:
-      raise unittest.SkipTest(f"test_fused_attention_fwd doesnot work on HIP currently")
+    # if is_hip:
+    #   raise unittest.SkipTest(f"test_fused_attention_fwd doesnot work on HIP currently")
     if jt.get_compute_capability(0) < 80:
       raise unittest.SkipTest(
           "Fused attention only works on GPUs with capability >= sm80")

@@ -57,6 +57,8 @@ import triton.language as tl
 import triton._C.libtriton.triton as _triton
 from pathlib import Path
 
+from ..triton_lib import write_to_file
+
 map, unsafe_map = util.safe_map, map
 zip, unsafe_zip = util.safe_zip, zip
 partial = functools.partial
@@ -1330,6 +1332,7 @@ def compile_jaxpr(
     num_stages: int,
     debug: bool,
 ) -> TritonCompilationResult:
+  print("compile_jaxpr")
   lowering_result = lower_jaxpr_to_triton_module(
       jaxpr, in_shapes, grid_spec, name
   )
@@ -1359,6 +1362,8 @@ def pallas_call_lowering(
     grid_spec: GridSpec,
     **compiler_params: Any
 ):
+  print("pallas_call_lowering")
+  print(f"interpret: ", interpret)
   if interpret:
   # if True:
     return mlir.lower_fun(pallas_call_p.impl, multiple_results=True)(
@@ -1375,11 +1380,14 @@ def pallas_call_lowering(
         grid_spec=grid_spec,
         **compiler_params
     )
+  
+  print(f"bad path: interpret is set to {interpret}")
   num_warps = compiler_params.get("num_warps", 4)
   num_stages = compiler_params.get("num_stages", 3)
   if debug:
-    print(jaxpr)
-    print(grid_spec)
+    # print(jaxpr)
+    # print(grid_spec)
+    write_to_file(str(jaxpr)+str(grid_spec), "dump.jaxpr")
   compilation_result = compile_jaxpr(
       jaxpr,
       tuple((*in_shapes, *out_shapes)),
@@ -1393,6 +1401,12 @@ def pallas_call_lowering(
   name = compilation_result.name
   shared_mem = compilation_result.shared_mem
   lowering_result = compilation_result.lowering_result
+
+  # print(f"cubin: {cubin}")
+  print(f"name: {name}")
+  print(f"shared_mem: {shared_mem}")
+  print(f"lowering_result: {lowering_result}")
+  exit()
   if debug:
     lowering_result.module.dump()
   out_type = ir.TupleType.get_tuple(

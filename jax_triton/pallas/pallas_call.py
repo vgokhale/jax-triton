@@ -40,6 +40,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from jax_triton.pallas import core as pallas_core
+from ..triton_lib import write_to_file
 
 map, unsafe_map = safe_map, map
 zip, unsafe_zip = safe_zip, zip
@@ -80,7 +81,7 @@ def _pallas_call_impl(*args, jaxpr, name, out_shapes, which_linear,
                       input_output_aliases: Tuple[Tuple[int, int], ...],
                       grid_spec: GridSpec,
                       **compiler_params: Any):
-  # print("_pallas_call_impl")
+  print("_pallas_call_impl")
   if interpret:
   # if True:
     # If we're in interpreter mode, we *scan* over the grid and eval the
@@ -89,7 +90,8 @@ def _pallas_call_impl(*args, jaxpr, name, out_shapes, which_linear,
     grid = grid_spec.grid
     discharged_jaxpr, consts = state_discharge.discharge_state(jaxpr, ())
     if debug:
-      print(discharged_jaxpr)
+      # print(discharged_jaxpr)
+      write_to_file(discharged_jaxpr, "dump.jaxpr")
     loop_indices = jnp.array(list(it.product(*(range(g) for g in grid))))
     oi_map = {v: k for k, v in input_output_aliases}
     out = []
@@ -329,6 +331,9 @@ def pallas_call(f: Callable, out_shape: Any, *, debug: bool = False,
                 interpret: bool = False,
                 name: Optional[str] = None,
                 **compiler_params: Any):
+  print("pallas_call")
+  print(f"f: {f}")
+  print(f"interpret: {interpret}")
   if grid is None:
     if in_specs is not None:
       raise ValueError("Cannot specify `in_specs` with a `None` grid.")
