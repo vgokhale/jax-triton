@@ -1385,9 +1385,10 @@ def pallas_call_lowering(
     )
   
   print(f"bad path: interpret is set to {interpret}")
-  num_warps = compiler_params.get("num_warps", 4)
-  # num_warps = 1
-  num_stages = compiler_params.get("num_stages", 3)
+  # num_warps = compiler_params.get("num_warps", 4)
+  num_warps = 1
+  # num_stages = compiler_params.get("num_stages", 3)
+  num_stages = 1
   if debug:
     # print(jaxpr)
     # print(grid_spec)

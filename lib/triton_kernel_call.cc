@@ -158,7 +158,7 @@ class TritonKernel {
 
     int shared_optin;
     ROCM_RETURN_IF_ERROR(hipDeviceGetAttribute(
-        &shared_optin, hipDeviceAttributeSharedMemPerBlockOptin,
+        &shared_optin, hipDeviceAttributeMaxSharedMemoryPerBlock ,
         device));
 
     if (shared_optin > kMaxStaticSharedMemBytes) {
