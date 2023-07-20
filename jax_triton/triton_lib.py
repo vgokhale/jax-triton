@@ -210,11 +210,13 @@ def compile_ttir_inplace(
     ttgir.dump()
     raise ValueError("TTGIR->LLIR pass failed!") from e
 
-  # print("extern_libs: ", extern_libs)
- 
-  # exit()
+
   shared_mem = _triton.get_shared_memory_size(ttgir)
-  # shared_mem = 2048
+  # shared_mem = 2048 # stop the invalid values errors
+  # shared_mem = 32768 # same
+  # shared_mem = 65536 # same
+  # shared_mem = 131072 #  failed: hipErrorInvalidValue
+
   # print(f"shared_mem: {shared_mem}")
   if dump:
     # print(llir)

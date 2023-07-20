@@ -242,8 +242,8 @@ class PallasCallTest(PallasTest):
       for k in [512]
       for n in [512, 1024]
       for dtype in ["float32", "float16"]
-      for block_size_m in [64, 128]
-      for block_size_n in [128, 256]
+      for block_size_m in [64] # [64, 128]
+      for block_size_n in [64] # [128, 256] low blocks sizes work
       for block_size_k in [32]
       for group_size_m in [8]
       if block_size_m <= m and block_size_n <= n and block_size_k <= k

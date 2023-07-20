@@ -1345,6 +1345,9 @@ def compile_jaxpr(
       num_stages=num_stages,
       dump=debug,
   )
+
+  # print(f"cubin: {len(cubin)}")
+  # some thing is wrong here maybe
   return TritonCompilationResult(Path(cubin[1]).read_bytes(), name, asm, shared_mem, lowering_result)
 
 
@@ -1383,6 +1386,7 @@ def pallas_call_lowering(
   
   print(f"bad path: interpret is set to {interpret}")
   num_warps = compiler_params.get("num_warps", 4)
+  # num_warps = 1
   num_stages = compiler_params.get("num_stages", 3)
   if debug:
     # print(jaxpr)
@@ -1397,18 +1401,18 @@ def pallas_call_lowering(
       num_stages,
       debug=debug,
   )
-  cubin = compilation_result.cubin
+  hsaco = compilation_result.cubin
   name = compilation_result.name
   shared_mem = compilation_result.shared_mem
   lowering_result = compilation_result.lowering_result
 
   # print(f"cubin: {cubin}")
-  print(f"name: {name}")
-  print(f"shared_mem: {shared_mem}")
-  print(f"lowering_result: {lowering_result}")
-  exit()
+  # print(f"name: {name}")
+  # print(f"shared_mem: {shared_mem}")
+  # print(f"lowering_result: {lowering_result}")
   if debug:
-    lowering_result.module.dump()
+    # lowering_result.module.dump()
+    write_to_file(lowering_result.module, "dump.llvm.mlir")
   out_type = ir.TupleType.get_tuple(
       [
           ir.RankedTensorType.get(
@@ -1419,7 +1423,7 @@ def pallas_call_lowering(
   )
   i32_type = ir.IntegerType.get_signless(32)
   kernel = triton_kernel_call_lib.TritonKernel(
-      cubin, name, num_warps, shared_mem
+      hsaco, name, num_warps, shared_mem
   )
   grid = triton_utils.normalize_grid(
       compilation_result.lowering_result.grid, metaparams={}
@@ -1435,6 +1439,7 @@ def pallas_call_lowering(
   kernel_call = triton_kernel_call_lib.TritonKernelCall(
       kernel, grid[0], grid[1], grid[2], kernel_params
   )
+  # exit()
   ctx.module_context.add_keepalive(kernel_call)
   output_operand_aliases = ir.ArrayAttr.get(
       [
