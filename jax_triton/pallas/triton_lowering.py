@@ -1385,10 +1385,9 @@ def pallas_call_lowering(
     )
   
   print(f"bad path: interpret is set to {interpret}")
-  # num_warps = compiler_params.get("num_warps", 4)
-  num_warps = 1
-  # num_stages = compiler_params.get("num_stages", 3)
-  num_stages = 1
+  num_warps = compiler_params.get("num_warps", 1)
+  num_stages = compiler_params.get("num_stages", 1)
+  print(f"num_warps = {num_warps}, num_stage = {num_stages}")
   if debug:
     # print(jaxpr)
     # print(grid_spec)
@@ -1413,7 +1412,8 @@ def pallas_call_lowering(
   # print(f"lowering_result: {lowering_result}")
   if debug:
     # lowering_result.module.dump()
-    write_to_file(lowering_result.module, "dump.llvm.mlir")
+    # write_to_file(lowering_result.module, "dump.llvm.mlir")
+    pass
   out_type = ir.TupleType.get_tuple(
       [
           ir.RankedTensorType.get(

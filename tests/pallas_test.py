@@ -263,7 +263,7 @@ class PallasCallTest(PallasTest):
     x = random.normal(k1, (m, k), dtype=dtype)
     y = random.normal(k2, (k, n), dtype=dtype)
     out, expected = matmul(x, y, bm=bm, bn=bn, bk=bk, gm=gm,
-                           interpret=self.INTERPRET, debug=True), jnp.matmul(x, y)
+                           interpret=self.INTERPRET, debug=False), jnp.matmul(x, y)
     np.testing.assert_allclose(out, expected, atol=0.05, rtol=0.05)
 
   @parameterized.named_parameters(*[
