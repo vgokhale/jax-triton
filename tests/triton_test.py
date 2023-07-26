@@ -22,8 +22,6 @@ import triton
 import triton.language as tl
 
 
-is_hip = True
-
 @triton.jit
 def add_kernel(
     x_ptr,  # *Pointer* to first input vector
@@ -100,9 +98,6 @@ class TritonTest(absltest.TestCase):
     np.testing.assert_allclose(add(x, y), x + y)
 
   def test_tanh_kernel(self):
-    if is_hip:
-      raise self.skipTest(f"test_tanh_kernel doesnot work on HIP currently")
-
     def tanh(x: jnp.ndarray) -> jnp.ndarray:
       out_shape = jax.ShapeDtypeStruct(shape=x.shape, dtype=x.dtype)
       grid = lambda meta: (triton.cdiv(x.size, meta['BLOCK_SIZE']),)

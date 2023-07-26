@@ -51,8 +51,6 @@ def empty() -> jnp.ndarray:
                               grid=(1,),
                               block_size=8)
 
-# print(empty())
-
 x_val = jnp.arange(8)
 y_val = jnp.arange(8, 16)
 print(f"x_val: {x_val}")

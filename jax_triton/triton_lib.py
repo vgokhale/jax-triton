@@ -181,7 +181,6 @@ def compile_ttir_inplace(
     num_stages: Optional[int] = None,
     dump: bool = False,
 ) -> Tuple[bytes, str, int, Dict[str, str]]:
-  print("compile_ttir_inplace")
   """Compiles a TTIR module to CUBIN (the TTIR is modified in-place)."""
   compute_capability = triton_kernel_call_lib.get_compute_capability(device)
   arch_full_details = get_amdgpu_arch_fulldetails()
@@ -190,7 +189,6 @@ def compile_ttir_inplace(
     num_stages = 3 if compute_capability >= 75 else 2
   asm = dict(ttir=str(ttir))
   if dump:
-    # print(ttir)
     write_to_file(ttir, "dump.ttir")
   try:
     ttir = tc.optimize_ttir(ttir, gfx_arch)
@@ -201,9 +199,9 @@ def compile_ttir_inplace(
     raise ValueError("TTIR->TTGIR pass failed!") from e
   asm["ttgir"] = str(ttgir)
   if dump:
-    # print(ttgir)
     write_to_file(ttgir, "dump.ttgir")
   extern_libs = {}
+  extern_libs.update(tc.get_amdgcn_bitcode_paths(arch_full_details))
   try:
     llir = tc.ttgir_to_llir(ttgir, extern_libs, gfx_arch)
   except RuntimeError as e:
@@ -212,20 +210,13 @@ def compile_ttir_inplace(
 
 
   shared_mem = _triton.get_shared_memory_size(ttgir)
-  # shared_mem = 2048 # stop the invalid values errors
-  # shared_mem = 32768 # same
-  # shared_mem = 65536 # same
-  # shared_mem = 131072 #  failed: hipErrorInvalidValue
 
-  # print(f"shared_mem: {shared_mem}")
   if dump:
-    # print(llir)
     write_to_file(llir, "dump.llir")
   hsa = tc.llir_to_amdgcn_and_hsaco(llir, gfx_arch,
                                           arch_full_details[0],
                                           arch_full_details[2])
   if dump:
-    # print(hsa)
     write_to_file(hsa[0], "dump.gcn")
     write_to_file(hsa[1], "dump.hsaco_path")
   name = get_kernel_name(hsa)
@@ -243,7 +234,6 @@ def get_or_create_triton_kernel(
     metaparams,
     dump: bool,
 ) -> Tuple[triton_kernel_call_lib.TritonKernel, Any]:
-  print("get_or_create_triton_kernel")
   signature = dict(enumerate(arg_dtypes))
   # TODO(sharadmv,zhangqiaorjc): handle differently aligned pointers
   # We assume that all arrays are aligned to 16 bytes, and Triton may use this
@@ -285,12 +275,6 @@ def get_or_create_triton_kernel(
         num_stages=num_stages,
         dump=dump,
     )
-    # print(f"cubin: {cubin}")
-    # print(f"name: {name}")
-    # print(f"num_warps: {num_warps}")
-    # print(f"num_stages: {num_stages}")
-    # print(f"shared_mem: {shared_mem}") #TODO:
-    # print("do triton_kernel_call_lib.TritonKernel")
     kernel = triton_kernel_call_lib.TritonKernel(
         Path(cubin[1]).read_bytes(), name, num_warps, shared_mem
     )
@@ -317,7 +301,6 @@ def triton_kernel_call_lowering(
     debug,
     **metaparams,
 ):
-  print("triton_kernel_call_lowering")
   if jaxlib.version.__version_info__ < (0, 3, 22) and input_output_aliases:
     raise NotImplementedError(
         "`input_output_aliases` only supported on `jaxlib>=0.3.22")
@@ -629,18 +612,6 @@ def triton_call(
   if input_output_aliases is None:
     input_output_aliases = {}
 
-  # print(f"array_args:{array_args}")
-  # print(f"kernel: {kernel}")
-  # print(f"tuple(scalar_args): {tuple(scalar_args)}")
-  # print(f"call_name: {call_name}")
-  # print(f"tuple(flat_out_shapes): {tuple(flat_out_shapes)}")
-  # print(f"grid: {grid}")
-  # print(f"num_warps: {num_warps}")
-  # print(f"num_stages: {num_stages}")
-  # print(f"tuple(input_output_aliases.items()): {tuple(input_output_aliases.items())}")
-  # print(f"zeroed_outputs: {zeroed_outputs}")
-  # print(f"debug: {debug}")
-  # print(f"metaparams: {metaparams}")
   out_flat = triton_kernel_call_p.bind(
       *array_args,
       fn=kernel,

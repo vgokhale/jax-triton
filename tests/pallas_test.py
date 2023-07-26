@@ -249,10 +249,6 @@ class PallasCallTest(PallasTest):
       if block_size_m <= m and block_size_n <= n and block_size_k <= k
     ])
   def test_matmul(self, m, n, k, dtype, bm, bn, bk, gm):
-    print("")
-    print("test_matmul")
-    # if is_hip and self.INTERPRET == False:
-    #   raise unittest.SkipTest(f"test_matmul works only in interpreter mode on HIP")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Matmul only works on GPUs with capability >= sm70")
@@ -280,8 +276,6 @@ class PallasCallTest(PallasTest):
       if block_size_m <= m and block_size_n <= n and block_size_k <= k
     ])
   def test_matmul_block_spec(self, m, n, k, dtype, bm, bn, bk):
-    # if is_hip and self.INTERPRET == False:
-    #   raise unittest.SkipTest(f"test_matmul_block_spec works only in interpreter mode on HIP")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Matmul only works on GPUs with capability >= sm70")
@@ -335,8 +329,6 @@ class PallasCallTest(PallasTest):
       if size < block_size
   ))
   def test_softmax(self, batch_size, size, block_size, dtype):
-    if is_hip and self.INTERPRET == False:
-      raise unittest.SkipTest(f"test_softmax works only in interpreter mode on HIP")
     @functools.partial(self.pallas_call,
         out_shape=jax.ShapeDtypeStruct((batch_size, size), dtype),
         grid=batch_size)
@@ -790,9 +782,6 @@ class PallasCallAutodifferentiationTest(PallasTest):
     # updated
     ])
   def test_jvp(self, impl):
-    if is_hip:
-      if impl == jnp.exp:
-        raise unittest.SkipTest(f"test_jvp_{impl} doesnot work on HIP currently")
     @functools.partial(
         self.pallas_call, out_shape=jax.ShapeDtypeStruct((), jnp.float32),
         debug=False,
@@ -819,9 +808,6 @@ class PallasCallAutodifferentiationTest(PallasTest):
     # updated
     ])
   def test_jvp_slice(self, impl):
-    if is_hip:
-      if impl == jnp.exp:
-        raise unittest.SkipTest(f"test_jvp_slice_{impl} doesnot work on HIP currently")
     @functools.partial(
         self.pallas_call, out_shape=jax.ShapeDtypeStruct((4,), jnp.float32),
         debug=False,
@@ -950,8 +936,6 @@ class PallasCallVmapTest(PallasTest):
     np.testing.assert_allclose(out, out_ref)
 
   def test_vmap_of_slicing_kernel_different_axes(self):
-    if is_hip:
-      raise unittest.SkipTest(f"test_vmap_of_slicing_kernel_different_axes doesnot work on HIP currently")
     @functools.partial(
         self.pallas_call, out_shape=jax.ShapeDtypeStruct((2,), jnp.int32),
         debug=False,
@@ -971,8 +955,6 @@ class PallasCallVmapTest(PallasTest):
     np.testing.assert_allclose(out, out_ref)
 
   def test_double_vmap_of_slicing_kernel_different_axes(self):
-    if is_hip:
-      raise unittest.SkipTest(f"test_double_vmap_of_slicing_kernel_different_axes doesnot work on HIP currently")
     @functools.partial(
         self.pallas_call, out_shape=jax.ShapeDtypeStruct((4,), jnp.float32),
         debug=False,
@@ -1194,8 +1176,6 @@ class RmsNormTest(parameterized.TestCase):
     (2, 384, 192),
   ])
   def test_rms_fwd(self, batch_size, seq_len, embed_dim):
-    if is_hip:
-      raise unittest.SkipTest(f"test_rms_fwd doesnot work on HIP currently")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Rms norm only works on GPUs with capability >= sm70")
@@ -1213,8 +1193,6 @@ class RmsNormTest(parameterized.TestCase):
     (2, 384, 192),
   ])
   def test_rms_norm_bwd(self, batch_size, seq_len, embed_dim):
-    if is_hip:
-      raise unittest.SkipTest(f"test_rms_norm_bwd doesnot work on HIP currently")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Rms norm only works on GPUs with capability >= sm70")

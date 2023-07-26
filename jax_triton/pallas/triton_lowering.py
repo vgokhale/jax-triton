@@ -1332,7 +1332,6 @@ def compile_jaxpr(
     num_stages: int,
     debug: bool,
 ) -> TritonCompilationResult:
-  print("compile_jaxpr")
   lowering_result = lower_jaxpr_to_triton_module(
       jaxpr, in_shapes, grid_spec, name
   )
@@ -1346,8 +1345,6 @@ def compile_jaxpr(
       dump=debug,
   )
 
-  # print(f"cubin: {len(cubin)}")
-  # some thing is wrong here maybe
   return TritonCompilationResult(Path(cubin[1]).read_bytes(), name, asm, shared_mem, lowering_result)
 
 
@@ -1365,10 +1362,7 @@ def pallas_call_lowering(
     grid_spec: GridSpec,
     **compiler_params: Any
 ):
-  print("pallas_call_lowering")
-  print(f"interpret: ", interpret)
   if interpret:
-  # if True:
     return mlir.lower_fun(pallas_call_p.impl, multiple_results=True)(
         ctx,
         *in_nodes,
@@ -1383,14 +1377,12 @@ def pallas_call_lowering(
         grid_spec=grid_spec,
         **compiler_params
     )
-  
-  print(f"bad path: interpret is set to {interpret}")
+
+  # TODO: revert to num_warps 4
   num_warps = compiler_params.get("num_warps", 1)
   num_stages = compiler_params.get("num_stages", 1)
-  print(f"num_warps = {num_warps}, num_stage = {num_stages}")
+  # print(f"num_warps = {num_warps}, num_stage = {num_stages}")
   if debug:
-    # print(jaxpr)
-    # print(grid_spec)
     write_to_file(str(jaxpr)+str(grid_spec), "dump.jaxpr")
   compilation_result = compile_jaxpr(
       jaxpr,
@@ -1406,14 +1398,9 @@ def pallas_call_lowering(
   shared_mem = compilation_result.shared_mem
   lowering_result = compilation_result.lowering_result
 
-  # print(f"cubin: {cubin}")
-  # print(f"name: {name}")
-  # print(f"shared_mem: {shared_mem}")
-  # print(f"lowering_result: {lowering_result}")
   if debug:
     # lowering_result.module.dump()
-    # write_to_file(lowering_result.module, "dump.llvm.mlir")
-    pass
+    write_to_file(lowering_result.module, "dump.llvm.mlir")
   out_type = ir.TupleType.get_tuple(
       [
           ir.RankedTensorType.get(

@@ -26,7 +26,7 @@ chmod -R 777 $LOG_DIR
 # UNIT_TEST="tests"
 # UNIT_TEST="tests/triton_test.py"
 # UNIT_TEST="tests/triton_call_test.py"
-# UNIT_TEST="tests/pallas_test.py"
+UNIT_TEST="tests/pallas_test.py"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_128_float16" # fails
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_softmax_1_1_128_float16" # passes
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_128_float32" # fails
@@ -37,7 +37,7 @@ chmod -R 777 $LOG_DIR
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_softmax"
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_matmul"
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_matmul_m_1024_n_1024_k_512_dtype_float16_bm_128_bn_128_bk_32_gm_8"
-UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_matmul_m_1024_n_1024_k_512_dtype_float32_bm_128_bn_128_bk_32_gm_8" #fails
+# UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_matmul_m_1024_n_1024_k_512_dtype_float32_bm_128_bn_128_bk_32_gm_8" #fails
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_matmul_m_1024_n_1024_k_512_dtype_float32_bm_128_bn_128_bk_32_gm_8" #passes
 
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_matmul_m_512_n_512_k_512_dtype_float32_bm_64_bn_64_bk_32_gm_8" # works
@@ -56,6 +56,9 @@ UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_matmul_m_1024_n_1024_k_512
 # FILTER="-k test_matmul_m_512_n_512_k_512_dtype_float32"
 # FILTER="-k test_fused"
 # FILTER="-k test_rms"
+# FILTER="-k test_jvp"
+# FILTER="-k test_vmap"
+# FILTER="-k test_fused"
 
 LOG_FILE_NAME=$(basename $UNIT_TEST)
 
