@@ -51,7 +51,6 @@ is_hip=True
 @functools.partial(jax.jit, static_argnames=["bm", "bn", "gm", "bk",
                                              "interpret", "debug"])
 def matmul(x, y, *, bm, bn, gm, bk, interpret, debug=False):
-  print("matmul")
   m, n, k = x.shape[0], y.shape[1], x.shape[1]
   @functools.partial(
       pl.pallas_call, out_shape=jax.ShapeDtypeStruct((m, n), jnp.float32),

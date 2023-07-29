@@ -17,7 +17,6 @@ chmod -R 777 $LOG_DIR
 
 
 # export MLIR_ENABLE_DUMP=1
-
 # export LLVM_IR_ENABLE_DUMP=1
 # export AMDGCN_ENABLE_DUMP=1
 
@@ -26,7 +25,7 @@ chmod -R 777 $LOG_DIR
 # UNIT_TEST="tests"
 # UNIT_TEST="tests/triton_test.py"
 # UNIT_TEST="tests/triton_call_test.py"
-UNIT_TEST="tests/pallas_test.py"
+# UNIT_TEST="tests/pallas_test.py"
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_128_float16" # fails
 # UNIT_TEST="tests/pallas_test.py::PallasCallInterpreterTest::test_softmax_1_1_128_float16" # passes
 # UNIT_TEST="tests/pallas_test.py::PallasCallTest::test_softmax_1_1_128_float32" # fails

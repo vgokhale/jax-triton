@@ -1378,8 +1378,8 @@ def pallas_call_lowering(
         **compiler_params
     )
 
-  # TODO: revert to num_warps 4
-  num_warps = compiler_params.get("num_warps", 1)
+  # TODO: revert to num_stages to 3
+  num_warps = compiler_params.get("num_warps", 4)
   num_stages = compiler_params.get("num_stages", 1)
   # print(f"num_warps = {num_warps}, num_stage = {num_stages}")
   if debug:
@@ -1427,7 +1427,6 @@ def pallas_call_lowering(
   kernel_call = triton_kernel_call_lib.TritonKernelCall(
       kernel, grid[0], grid[1], grid[2], kernel_params
   )
-  # exit()
   ctx.module_context.add_keepalive(kernel_call)
   output_operand_aliases = ir.ArrayAttr.get(
       [
