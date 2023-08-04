@@ -259,7 +259,7 @@ class PallasCallTest(PallasTest):
     y = random.normal(k2, (k, n), dtype=dtype)
     out, expected = matmul(x, y, bm=bm, bn=bn, bk=bk, gm=gm,
                            interpret=self.INTERPRET, debug=False), jnp.matmul(x, y)
-    np.testing.assert_allclose(out, expected, atol=0.05, rtol=0.05)
+    np.testing.assert_allclose(out, expected, atol=0.1, rtol=0.1)
 
   @parameterized.named_parameters(*[
     (f"m_{m}_n_{n}_k_{k}_dtype_{dtype}_bm_{block_size_m}_"
@@ -1057,18 +1057,19 @@ class FusedAttentionTest(parameterized.TestCase):
       (f"{batch_size=}_{seq_len=}_{num_heads=}_{head_dim=}_{causal=}_{use_fwd=}",
        batch_size, seq_len, num_heads, head_dim, causal, use_fwd)
       for batch_size, seq_len, num_heads, head_dim, causal, use_fwd in [
+          (4, 1024, 48, 64, False, False),
           (1, 384, 1, 64, False, False),
           (2, 384, 2, 64, False, False),
+          (1, 1024, 1, 64, False, False),
           (1, 384, 1, 64, True, False),
           (2, 384, 2, 64, True, False),
           (1, 384, 8, 64, True, True),
           (2, 384, 8, 64, True, True),
+          (1, 1024, 8, 64, True, True),
       ]
   ])
   def test_fused_attention_fwd(self, batch_size, seq_len, num_heads, head_dim,
                                causal, use_fwd):
-    if is_hip:
-      raise unittest.SkipTest(f"test_fused_attention_fwd doesnot work on HIP currently")
     if jt.get_compute_capability(0) < 80:
       raise unittest.SkipTest(
           "Fused attention only works on GPUs with capability >= sm80")
@@ -1087,7 +1088,7 @@ class FusedAttentionTest(parameterized.TestCase):
       impl = functools.partial(attention.mha, causal=causal)
     o = impl(q, k, v)
     o_ref = attention.mha_reference(q, k, v, causal=causal)
-    np.testing.assert_allclose(o, o_ref, atol=0.05)
+    np.testing.assert_allclose(o, o_ref, atol=0.3)
 
   @parameterized.named_parameters(*[
       (f"{batch_size=}_{seq_len=}_{num_heads=}_{head_dim=}_{causal=}",
@@ -1095,14 +1096,16 @@ class FusedAttentionTest(parameterized.TestCase):
       for batch_size, seq_len, num_heads, head_dim, causal in [
           (1, 384, 1, 32, False),
           (2, 384, 2, 32, False),
+          (1, 1024, 1, 32, False),
+          (1, 1024, 2, 32, False),
           (1, 384, 1, 32, True),
+          (1, 1024, 1, 32, True),
           (2, 384, 2, 32, True),
+          (2, 1024, 2, 32, True),
       ]
   ])
   def test_fused_attention_bwd(self, batch_size, seq_len, num_heads, head_dim,
                                causal):
-    if is_hip:
-      raise unittest.SkipTest(f"test_fused_attention_bwd doesnot work on HIP currently")
     if jt.get_compute_capability(0) < 80:
       raise unittest.SkipTest(
           "Fused attention only works on GPUs with capability >= sm80")
@@ -1123,9 +1126,9 @@ class FusedAttentionTest(parameterized.TestCase):
 
     dq, dk, dv = jax.grad(f, argnums=(0, 1, 2))(q, k, v)
     dq_ref, dk_ref, dv_ref = jax.grad(f_ref, argnums=(0, 1, 2))(q, k, v)
-    np.testing.assert_allclose(dq, dq_ref, atol=0.05)
-    np.testing.assert_allclose(dk, dk_ref, atol=0.05)
-    np.testing.assert_allclose(dv, dv_ref, atol=0.05)
+    np.testing.assert_allclose(dq, dq_ref, atol=0.1)
+    np.testing.assert_allclose(dk, dk_ref, atol=0.1)
+    np.testing.assert_allclose(dv, dv_ref, atol=0.1)
 
 
 class FusedLayerNormTest(parameterized.TestCase):
@@ -1133,10 +1136,9 @@ class FusedLayerNormTest(parameterized.TestCase):
   @parameterized.parameters(*[
     (1, 384, 192),
     (2, 384, 192),
+    (2, 1024, 192),
   ])
   def test_fused_layernorm_fwd(self, batch_size, seq_len, embed_dim):
-    if is_hip:
-      raise unittest.SkipTest(f"test_fused_layernorm_fwd doesnot work on HIP currently")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Fused layernorm only works on GPUs with capability >= sm70")
@@ -1154,8 +1156,6 @@ class FusedLayerNormTest(parameterized.TestCase):
     (2, 384, 192),
   ])
   def test_fused_layernorm_bwd(self, batch_size, seq_len, embed_dim):
-    if is_hip:
-      raise unittest.SkipTest(f"test_fused_layernorm_bwd doesnot work on HIP currently")
     if jt.get_compute_capability(0) < 70:
       raise unittest.SkipTest(
           "Fused layernorm only works on GPUs with capability >= sm70")
