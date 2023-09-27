@@ -67,10 +67,10 @@ def mha_forward_kernel(
     m_i_new = jnp.maximum(m_prev, jnp.max(qk, axis=1))
     acc_scale = jnp.exp2(m_prev - m_i_new)
     p = jnp.exp2(qk - m_i_new[:, None])
-    l_curr = l_i * acc_scale + jnp.sum(p, axis=1)
     p = p.astype(jnp.float16)
     acc = acc * acc_scale[:, None]
     acc += pl.dot(p, v)
+    l_curr = l_i * acc_scale + jnp.sum(p, axis=1)
     m_curr = m_i_new
     return acc, m_curr, l_curr
   if causal:
