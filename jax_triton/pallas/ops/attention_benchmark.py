@@ -15,7 +15,7 @@ def fused_attention_fwd(q, k, v, batch_size, num_heads, seq_len, head_dim,
     return attention.mha(q, k, v, causal=causal).sum()
 
   o = f(q, k, v)
-  iter = 1000
+  iter = 1
   start_time = time.time()
   for i in range (0, iter):
     o = f(q, k, v)
