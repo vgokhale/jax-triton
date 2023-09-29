@@ -53,30 +53,25 @@ def mha_forward_kernel(
     acc, m_prev, l_prev = carry
 
     k = pl.load(k_ref, (pl.dslice(start_k * block_k, block_k), slice(None)))
+    v = pl.load(v_ref, (pl.dslice(start_k * block_k, block_k), pl.dslice(block_d)))
     qk = jnp.zeros([block_q, block_k], dtype=jnp.float32)
     qk += pl.dot(q, k.T)   # [block_q, block_k]
-    if sm_scale != 1.:
-      qk *= sm_scale # [block_q, block_k]
-
+    qk *= qk_scale
     if causal:
       span_q = start_q * block_q + jnp.arange(block_q)
       span_k = start_k * block_k + jnp.arange(block_k)
       qk = jnp.where(span_q[:, None] >= span_k[None, :], qk, float('-inf'))
     # Bring closer to XLA:GPU numerics.
-    qk = qk.astype(q_ref.dtype)
+    qk = qk.astype(jnp.float16)
     qk = qk.astype(jnp.float32)
-    m_curr = jnp.maximum(jnp.max(qk, axis=1), m_prev)
-    l_prev *= jnp.exp(m_prev - m_curr)
-    p = jnp.exp(qk - m_curr[:, None])
-    l_curr = jnp.sum(p, axis=1) + l_prev
-
-    l_rcp = 1. / l_curr
-    p = p * l_rcp[:, None]
-    acc *= (l_prev * l_rcp)[:, None]
+    m_i_new = jnp.maximum(m_prev, jnp.max(qk, axis=1))
+    acc_scale = jnp.exp2(m_prev - m_i_new)
+    p = jnp.exp2(qk - m_i_new[:, None])
     p = p.astype(jnp.float16)
-
-    v = pl.load(v_ref, (pl.dslice(start_k * block_k, block_k), pl.dslice(block_d)))
-    acc = acc + pl.dot(p.astype(v.dtype), v)
+    acc = acc * acc_scale[:, None]
+    acc += pl.dot(p, v)
+    l_curr = l_prev * acc_scale + jnp.sum(p, axis=1)
+    m_curr = m_i_new
     return acc, m_curr, l_curr
   if causal:
     upper_bound = lax.div(block_q * start_q, block_k) + 1
@@ -85,10 +80,11 @@ def mha_forward_kernel(
   acc, m_i, l_i = lax.fori_loop(0, upper_bound, body,
                                 (acc, m_i, l_i))
 
+  acc = acc / l_i[:, None]
   if residual_refs:
     l_ref, m_ref = residual_refs
-    pl.store(l_ref, (pl.ds(start_q * block_q, block_q),), l_i)
-    pl.store(m_ref, (pl.ds(start_q * block_q, block_q),), m_i)
+    lse = m_i + jnp.log2(l_i)
+    pl.store(l_ref, (pl.ds(start_q * block_q, block_q),), lse)
   # Write output to dram.
   acc = acc.astype(o_ref.dtype)
   pl.store(o_ref, (pl.dslice(start_q * block_q, block_q), pl.dslice(None)), acc)
