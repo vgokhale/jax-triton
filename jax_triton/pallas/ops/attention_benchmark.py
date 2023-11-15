@@ -1,9 +1,7 @@
 import jax
 from jax import random
 import jax.numpy as jnp
-import jax_triton as jt
-from jax_triton import pallas as pl
-from jax_triton.pallas.ops import attention
+from jax.experimental.pallas.ops import attention
 import sys
 import time
 
@@ -12,10 +10,10 @@ def fused_attention_fwd(q, k, v, batch_size, num_heads, seq_len, head_dim,
 
   @jax.jit
   def f(q, k, v):
-    return attention.mha(q, k, v, causal=causal).sum()
+    return attention.mha(q, k, v, None, causal=causal)
 
   o = f(q, k, v)
-  iter = 1
+  iter = 100
   start_time = time.time()
   for i in range (0, iter):
     o = f(q, k, v)
@@ -34,7 +32,7 @@ def fused_attention_bwd(q, k, v, batch_size, num_heads, seq_len, head_dim,
 
   @jax.jit
   def f(q, k, v):
-    return attention.mha(q, k, v, causal=causal).sum()
+    return attention.mha(q, k, v, None, causal=causal).sum()
 
   grad_jitted = jax.jit(jax.grad(f, argnums=(0, 1, 2)))
   dq, dk, dv = grad_jitted(q, k, v)
@@ -57,30 +55,30 @@ def fused_attention_bwd(q, k, v, batch_size, num_heads, seq_len, head_dim,
 def main(args=None):
     bs, nheads, d = 4, 48, 64
     seqlen = [1024]#, 2048, 4096, 8192, 16384]
-    causal = False
+    causal = True
     k1, k2, k3 = random.split(random.PRNGKey(0), 3)
 
     @jax.jit
     def f_ref(q, k, v):
-      return attention.mha_reference(q, k, v, causal=causal).sum()
-
-    for sq in seqlen:
-      q = random.normal(k1, (bs, sq, nheads, d), dtype=jnp.float16)
-      k = random.normal(k2, (bs, sq, nheads, d), dtype=jnp.float16)
-      v = random.normal(k3, (bs, sq, nheads, d), dtype=jnp.float16)
-      o = fused_attention_fwd(q, k, v, bs, nheads, sq, d, causal)
-    o_ref = f_ref(q, k, v)
-    print(f"err o = {jnp.max(o_ref-o)}")
+      return attention.mha_reference(q, k, v, None, causal=causal).sum()
 
     #for sq in seqlen:
     #  q = random.normal(k1, (bs, sq, nheads, d), dtype=jnp.float16)
     #  k = random.normal(k2, (bs, sq, nheads, d), dtype=jnp.float16)
     #  v = random.normal(k3, (bs, sq, nheads, d), dtype=jnp.float16)
-    #  dq, dk, dv = fused_attention_bwd(q, k, v, bs, nheads, sq, d, causal)
-    #dq_ref, dk_ref, dv_ref = jax.jit(jax.grad(f_ref, argnums=(0, 1, 2)))(q, k, v)
-    #print(f"err dq = {jnp.max(dq_ref-dq)}")
-    #print(f"err dk = {jnp.max(dk_ref-dk)}")
-    #print(f"err dv = {jnp.max(dv_ref-dv)}")
+    #  o = fused_attention_fwd(q, k, v, bs, nheads, sq, d, causal)
+    #o_ref = f_ref(q, k, v)
+    #print(f"err o = {jnp.max(o_ref-o)}")
+
+    for sq in seqlen:
+      q = random.normal(k1, (bs, sq, nheads, d), dtype=jnp.float16)
+      k = random.normal(k2, (bs, sq, nheads, d), dtype=jnp.float16)
+      v = random.normal(k3, (bs, sq, nheads, d), dtype=jnp.float16)
+    dq, dk, dv = fused_attention_bwd(q, k, v, bs, nheads, sq, d, causal)
+    dq_ref, dk_ref, dv_ref = jax.jit(jax.grad(f_ref, argnums=(0, 1, 2)))(q, k, v)
+    print(f"err dq = {jnp.max(dq_ref-dq)}")
+    print(f"err dk = {jnp.max(dk_ref-dk)}")
+    print(f"err dv = {jnp.max(dv_ref-dv)}")
 
 if __name__ == '__main__':
     sys.exit(main())
